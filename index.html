@@ -3,33 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Centrale Incendi Pro</title>
-    
+    <title>Centrale Operativa Incendi - Cloud Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; }
-        #map { 
-            height: calc(100vh - 60px); 
-            width: 100%; 
-            display: block; /* Forza la visualizzazione */
-            background: #cbd2d8; 
-        }
-        header { 
-            height: 60px; background: #2c3e50; color: white; 
-            display: flex; align-items: center; padding: 0 20px; justify-content: space-between;
-        }
-        .login-box input { padding: 8px; border-radius: 4px; border: none; margin-right: 5px; width: 140px; }
+        html, body { height: 100%; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        header { height: 60px; background: #2c3e50; color: white; display: flex; align-items: center; padding: 0 20px; justify-content: space-between; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        #map { height: calc(100vh - 60px); width: 100%; background: #cbd2d8; }
+        .login-box input { padding: 8px; border-radius: 4px; border: none; margin-right: 5px; }
         .login-box button { padding: 8px 15px; cursor: pointer; background: #e74c3c; color: white; border: none; border-radius: 4px; font-weight: bold; }
-        .hidden { display: none; }
-        .legend { background: white; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
+        .legend { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.2); line-height: 20px; font-size: 13px; }
+        .legend i { width: 18px; height: 18px; float: left; margin-right: 8px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div id="fire-count">🔥 Centrale Operativa</div>
+    <div id="status-text">🔥 <b>CENTRALE OPERATIVA</b>: <span id="count">In attesa login</span></div>
     <div id="login-section" class="login-box">
         <input type="password" id="operator-code" placeholder="Codice">
         <button onclick="checkAuth()">ENTRA</button>
@@ -55,10 +45,11 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-
-    // Inizializzazione mappa migliorata
     const map = L.map('map').setView([43.5, 12.0], 7);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    const manualLayer = L.layerGroup().addTo(map);
+    const nasaLayer = L.layerGroup().addTo(map);
 
     window.checkAuth = function() {
         const code = document.getElementById('operator-code').value;
@@ -66,15 +57,22 @@
             document.getElementById('login-section').innerHTML = "<b style='color:#2ecc71'>⭐ STAFF GABRIELE</b>";
             loadNasaData();
             attivaCloud();
+            aggiungiLegenda();
         } else { alert("Codice Errato"); }
     };
 
     function attivaCloud() {
         onSnapshot(collection(db, "segnalazioni"), (snapshot) => {
+            manualLayer.clearLayers();
             snapshot.forEach((docSnap) => {
                 const s = docSnap.data();
-                L.marker([s.lat, s.lon]).addTo(map).bindPopup(s.desc);
+                const iconViola = L.divIcon({
+                    html: '<i class="fas fa-camera" style="color:#9b59b6; font-size:20px;"></i>',
+                    className: 'm-icon'
+                });
+                L.marker([s.lat, s.lon], {icon: iconViola}).addTo(manualLayer).bindPopup(`<b>Segnalazione Cloud</b><br>${s.desc}`);
             });
+            aggiornaLabel();
         });
     }
 
@@ -82,15 +80,48 @@
         const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/6c7f29542d837e182b0bf7292cb52b99/VIIRS_SNPP_NRT/6,35,19,48/1`;
         const res = await fetch(url);
         const csv = await res.text();
+        nasaLayer.clearLayers();
         csv.split('\n').slice(1).forEach(line => {
             const c = line.split(',');
             if (c.length < 3) return;
             const lat = parseFloat(c[0]), lon = parseFloat(c[1]), bright = parseFloat(c[2]);
             const celsius = (bright - 273.15).toFixed(1);
-            L.marker([lat, lon], {icon: L.divIcon({html: '<i class="fas fa-fire" style="color:red"></i>'})})
-            .addTo(map).bindPopup(`Temp: ${celsius}°C`);
+            const colore = celsius > 50 ? '#d73027' : '#fdae61';
+            L.marker([lat, lon], {icon: L.divIcon({html: `<i class="fas fa-fire" style="color:${colore}; font-size:18px;"></i>`})})
+            .addTo(nasaLayer).bindPopup(`<b>🔥 Satellite</b><br>Temperatura: ${celsius}°C`);
         });
+        aggiornaLabel();
     }
+
+    function aggiornaLabel() {
+        document.getElementById('count').innerText = `${nasaLayer.getLayers().length} Satelliti + ${manualLayer.getLayers().length} Cloud`;
+    }
+
+    function aggiungiLegenda() {
+        const legend = L.control({position: 'bottomright'});
+        legend.onAdd = function () {
+            const div = L.DomUtil.create('div', 'legend');
+            div.innerHTML = '<b>LEGENDA</b><br>' +
+                '<i class="fas fa-fire" style="color:#d73027"></i> Incendio Intenso<br>' +
+                '<i class="fas fa-fire" style="color:#fdae61"></i> Focolaio Moderato<br>' +
+                '<i class="fas fa-camera" style="color:#9b59b6"></i> Segnalazione Cloud';
+            return div;
+        };
+        legend.addTo(map);
+    }
+
+    // Abilita l'invio cliccando sulla mappa dopo il login
+    map.on('click', async (e) => {
+        const code = document.getElementById('operator-code');
+        if (!code) { // Se il login è fatto, l'elemento sparisce
+            const desc = prompt("Cosa vedi in questo punto?");
+            if (desc) {
+                await addDoc(collection(db, "segnalazioni"), {
+                    lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, ora: new Date().toLocaleString()
+                });
+            }
+        }
+    });
 </script>
 </body>
 </html>
