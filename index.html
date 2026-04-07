@@ -78,31 +78,30 @@
     const NASA_KEY = "6c7f29542d837e182b0bf7292cb52b99";
 
     async function loadNasaData() {
+        const NASA_KEY = "6c7f29542d837e182b0bf7292cb52b99";
+        // Ho aggiunto un numero casuale alla fine (?v=...) per forzare la NASA a non darti dati vecchi
+        const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/country/csv/${NASA_KEY}/MODIS_NRT/ITA/1?v=${Math.random()}`;
+        
         try {
-            // Versione ultra-compatibile: solo Italia, solo ultimo giorno, sensore MODIS
-            const url = `https://firms.modaps.eosdis.nasa.gov/api/country/csv/${NASA_KEY}/MODIS_NRT/ITA/1`;
-            
             const res = await fetch(url);
-            console.log("Risposta NASA:", res.status);
-
-            if (!res.ok) throw new Error("Errore server NASA: " + res.status);
+            if (!res.ok) throw new Error("Risposta server: " + res.status);
 
             const csv = await res.text();
+            console.log("Dati ricevuti con successo!");
+
             const lines = csv.split('\n').slice(1);
-            
             lines.forEach(line => {
                 const c = line.split(',');
                 if(c.length > 2) {
-                    // MODIS usa le prime due colonne per Latitudine e Longitudine
                     const lat = parseFloat(c[0]);
                     const lon = parseFloat(c[1]);
                     L.marker([lat, lon], {icon: nasaIcon})
-                     .addTo(map).bindPopup("<b>Satellite NASA</b><br>Incendio rilevato");
+                     .addTo(map)
+                     .bindPopup("<b>Satellite NASA</b><br>Possibile incendio");
                 }
             });
-            console.log("Successo! Dati NASA caricati.");
-        } catch(e) { 
-            console.error("Errore NASA:", e.message); 
+        } catch(e) {
+            console.error("Errore finale:", e.message);
         }
     }
     loadNasaData();
