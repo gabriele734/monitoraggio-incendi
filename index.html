@@ -47,12 +47,21 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    
     const map = L.map('map').setView([42.0, 12.5], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
+
+    // --- LISTA FALSI POSITIVI INDUSTRIALI (Raffinerie/Acciaierie) ---
+    const industrialZones = [
+        {lat: 40.48, lon: 17.22, name: "Ilva Taranto"},
+        {lat: 37.13, lon: 15.18, name: "Priolo/Augusta"},
+        {lat: 45.45, lon: 12.23, name: "Porto Marghera"},
+        {lat: 42.92, lon: 10.53, name: "Piombino"},
+        {lat: 43.58, lon: 10.33, name: "Livorno Raffineria"},
+        {lat: 44.91, lon: 8.82, name: "Sannazzaro de' Burgondi"}
+    ];
 
     window.checkAuth = function() {
         if (document.getElementById('operator-code').value === "GABRIELE_STAFF") {
@@ -79,35 +88,31 @@
                 const lon = parseFloat(c[1]);
                 const bright = parseFloat(c[2]);
 
-                // --- FILTRI DI ESCLUSIONE DRASTICI ---
-                let isItalia = (lat > 36.5 && lat < 47.1) && (lon > 6.6 && lon < 18.5);
+                // 1. FILTRI CONFINI NAZIONALI
+                let isValid = (lat > 36.5 && lat < 47.1) && (lon > 6.6 && lon < 18.5);
+                
+                if (lat > 46.55) isValid = false; // No Svizzera
+                if (lon > 13.6 && lat > 42.0) isValid = false; // No Balcani
+                if (lon < 9.7 && lat > 41.3 && lat < 43.1) isValid = false; // No Corsica
+                if (lat < 37.1) isValid = false; // No Tunisia
 
-                // 1. Taglio Svizzera
-                if (lat > 46.55) isItalia = false; 
+                // 2. FILTRO FALSI POSITIVI INDUSTRIALI
+                industrialZones.forEach(zone => {
+                    const dist = Math.sqrt(Math.pow(lat - zone.lat, 2) + Math.pow(lon - zone.lon, 2));
+                    if (dist < 0.05) isValid = false; // Se è troppo vicino a una raffineria, lo scartiamo
+                });
 
-                // 2. Taglio Balcani (Costa Croata/Bosniaca)
-                if (lon > 13.6 && lat > 42.0) isItalia = false; 
-
-                // 3. TAGLIO CORSICA (Area cerchiata in nero)
-                if (lon < 9.7 && lat > 41.3 && lat < 43.1) isItalia = false;
-
-                // 4. Taglio Tunisia
-                if (lat < 37.1) isItalia = false; 
-
-                if (isItalia) {
+                if (isValid) {
                     const temp = (bright - 273.15).toFixed(0);
                     const color = temp > 50 ? '#d73027' : '#fdae61';
                     L.marker([lat, lon], {
-                        icon: L.divIcon({ 
-                            html: `<i class="fas fa-fire" style="color:${color}; font-size:16px;"></i>`, 
-                            className: 'f-icon' 
-                        })
+                        icon: L.divIcon({ html: `<i class="fas fa-fire" style="color:${color}; font-size:16px;"></i>`, className: 'f-icon' })
                     }).addTo(nasaLayer).bindPopup(`🔥 Incendio: ${temp}°C`);
                     n++;
                 }
             }
             document.getElementById('count').innerText = `${n} Incendi in Italia`;
-        } catch (e) { console.error("Errore caricamento dati"); }
+        } catch (e) { console.error("Errore"); }
     }
 
     function loadCloudData() {
@@ -128,10 +133,7 @@
         const legend = L.control({position: 'bottomright'});
         legend.onAdd = function() {
             const div = L.DomUtil.create('div', 'legend');
-            div.innerHTML = '<b>LEGENDA</b><br>' +
-                            '<i class="fas fa-fire" style="color:#d73027"></i> Critico<br>' +
-                            '<i class="fas fa-fire" style="color:#fdae61"></i> Moderato<br>' +
-                            '<i class="fas fa-camera" style="color:purple"></i> Cloud';
+            div.innerHTML = '<b>LEGENDA</b><br><i class="fas fa-fire" style="color:#d73027"></i> Critico<br><i class="fas fa-fire" style="color:#fdae61"></i> Moderato<br><i class="fas fa-camera" style="color:purple"></i> Cloud';
             return div;
         };
         legend.addTo(map);
@@ -139,11 +141,9 @@
 
     map.on('click', async (e) => {
         if (document.getElementById('login-section').innerHTML.includes("STAFF")) {
-            const desc = prompt("Descrizione:");
+            const desc = prompt("Descrizione incendio:");
             if (desc) { 
-                await addDoc(collection(db, "segnalazioni"), { 
-                    lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, timestamp: new Date() 
-                }); 
+                await addDoc(collection(db, "segnalazioni"), { lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, timestamp: new Date() }); 
             }
         }
     });
