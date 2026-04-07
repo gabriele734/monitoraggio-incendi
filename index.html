@@ -5,97 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoraggio Incendi Italia - Real Time</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    // Creiamo un'icona personalizzata a forma di fiamma
-const fireIcon = L.divIcon({
-    html: '<i class="fas fa-fire" style="color: #e74c3c; font-size: 20px;"></i>',
-    className: 'custom-fire-icon',
-    iconSize: [20, 20],
-    iconAnchor: [10, 10]
-});
-
-// Nella funzione loadNasaData, sostituisci il marker con questo:
-L.marker([lat, lon], {icon: fireIcon})
- .addTo(map)
- .bindPopup(`
-    <div style="text-align:center">
-        <b style="color:#e74c3c">🔥 POSSIBILE INCENDIO</b><br>
-        <hr>
-        <b>Lat:</b> ${lat.toFixed(4)}<br>
-        <b>Lon:</b> ${lon.toFixed(4)}<br>
-        <small>Fonte: NASA FIRMS (VIIRS)</small>
-    </div>
- `);
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         #map { height: calc(100vh - 60px); width: 100%; }
-        header { 
-            height: 60px; background: #2c3e50; color: white; 
+        header {
+            height: 60px; background: #2c3e50; color: white;
             display: flex; align-items: center; padding: 0 20px; justify-content: space-between;
         }
-        .login-box input { padding: 5px; border-radius: 4px; border: none; }
+        .login-box input { padding: 5px; border-radius: 4px; border: none; margin-right: 5px; }
         .login-box button { padding: 5px 15px; cursor: pointer; background: #e74c3c; color: white; border: none; border-radius: 4px; }
-        .hidden { display: none; }
     </style>
 </head>
 <body>
 
 <header>
-    <strong>🔥 INCENDI ITALIA LIVE</strong>
-    <div id="auth-ui">
-        <div id="login-form">
-            <input type="email" id="email" placeholder="Email Volontario">
-            <input type="password" id="pass" placeholder="Password">
-            <button onclick="login()">Accedi</button>
-        </div>
-        <div id="user-info" class="hidden">
-            <span id="user-display">Sei loggato</span>
-            <button onclick="logout()">Esci</button>
-        </div>
+    <div>🔥 INCENDI ITALIA LIVE</div>
+    <div class="login-box">
+        <input type="text" placeholder="Email Volontario">
+        <input type="password" placeholder="Password">
+        <button>Accedi</button>
     </div>
 </header>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-<script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-        apiKey: "AIzaSyClmNoNbNpxk5IjB9LsrQvWqPI1YodxY9E",
-        authDomain: "monitoraggioincendi-41f5f.firebaseapp.com",
-        projectId: "monitoraggioincendi-41f5f",
-        storageBucket: "monitoraggioincendi-41f5f.firebasestorage.app",
-        messagingSenderId: "63942195354",
-        appId: "1:63942195354:web:cc5bb978858676c6748723"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth();
-    const db = getFirestore();
-
-    const map = L.map('map').setView([41.8719, 12.5674], 6);
+<script>
+    // Inizializzazione Mappa su Italia
+    const map = L.map('map').setView([42.0, 12.5], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
+        attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
-
-    // --- FIX ICONE (Usiamo icone standard se quelle esterne falliscono) ---
-    const nasaIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41]
-    });
-
-    const volontarioIcon = L.icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41]
-    });
-
-// --- 3. DATI NASA (SATELLITE) ---
-    const NASA_KEY = "6c7f29542d837e182b0bf7292cb52b99";
 
     async function loadNasaData() {
         const NASA_KEY = "6c7f29542d837e182b0bf7292cb52b99";
@@ -113,7 +54,7 @@ L.marker([lat, lon], {icon: fireIcon})
                     const lat = parseFloat(c[0]);
                     const lon = parseFloat(c[1]);
 
-                    // --- QUI METTIAMO IL PUNTO 1 ---
+                    // Crea l'icona della fiamma
                     const fireIcon = L.divIcon({
                         html: '<i class="fas fa-fire" style="color: #ff4500; font-size: 22px; text-shadow: 0 0 3px black;"></i>',
                         className: 'custom-fire-icon',
@@ -121,65 +62,26 @@ L.marker([lat, lon], {icon: fireIcon})
                         iconAnchor: [10, 10]
                     });
 
+                    // Aggiungi il marker (fiammella)
                     L.marker([lat, lon], {icon: fireIcon})
                      .addTo(map)
                      .bindPopup(`<b>🔥 Incendio Satellite</b><br>Lat: ${lat}<br>Lon: ${lon}`);
+
+                    // Aggiungi il cerchio di calore (Punto 2)
+                    L.circle([lat, lon], {
+                        color: 'red',
+                        fillColor: '#f03',
+                        fillOpacity: 0.2,
+                        radius: 1500 
+                    }).addTo(map);
                 }
             });
             console.log("Mappa aggiornata con icone fuoco!");
-        } catch(e) { console.error(e.message); }
+        } catch(e) { console.error("Errore NASA:", e.message); }
     }
+
+    // Avvia il caricamento
     loadNasaData();
-
-    // --- AUTENTICAZIONE ---
-    window.login = () => {
-        const e = document.getElementById('email').value;
-        const p = document.getElementById('pass').value;
-        signInWithEmailAndPassword(auth, e, p).catch(err => alert("Errore: " + err.message));
-    };
-    window.logout = () => signOut(auth);
-
-    onAuthStateChanged(auth, user => {
-        const loginForm = document.getElementById('login-form');
-        const userInfo = document.getElementById('user-info');
-        if (user) {
-            loginForm.classList.add('hidden');
-            userInfo.classList.remove('hidden');
-            document.getElementById('user-display').innerText = "Volontario: " + user.email;
-        } else {
-            loginForm.classList.remove('hidden');
-            userInfo.classList.add('hidden');
-        }
-    });
-
-    // --- SEGNALAZIONI ---
-    map.on('click', async (e) => {
-        if (auth.currentUser) {
-            const desc = prompt("Descrizione incendio (es. Bosco zona Nord):");
-            if (desc) {
-                await addDoc(collection(db, "segnalazioni"), {
-                    lat: e.latlng.lat,
-                    lng: e.latlng.lng,
-                    desc: desc,
-                    user: auth.currentUser.email,
-                    time: serverTimestamp()
-                });
-            }
-        } else {
-            alert("Devi accedere per segnalare!");
-        }
-    });
-
-    onSnapshot(collection(db, "segnalazioni"), (snap) => {
-        snap.docChanges().forEach(change => {
-            if (change.type === "added") {
-                const d = change.doc.data();
-                const data = d.time ? new Date(d.time.seconds * 1000).toLocaleString() : "Ora non disponibile";
-                L.marker([d.lat, d.lng], {icon: volontarioIcon}).addTo(map)
-                 .bindPopup(`<b>Segnalazione Volontaria</b><br>${d.desc}<br><small>${d.user}</small><br><small>${data}</small>`);
-            }
-        });
-    });
 </script>
 </body>
 </html>
