@@ -80,40 +80,51 @@
     }
 
     // 4. CARICAMENTO DATI
-    async function loadNasaData() {
+async function loadNasaData() {
         const NASA_KEY = "6c7f29542d837e182b0bf7292cb52b99";
-        // Questo URL ora punta solo all'area dell'Italia (Longitudini 6-19, Latitudini 35-48)
-const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_KEY}/VIIRS_SNPP_NRT/6,35,19,48/1`;
+        // URL ottimizzato per l'area italiana
+        const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_KEY}/VIIRS_SNPP_NRT/6,35,19,48/1`;
         
         try {
             const res = await fetch(url);
             const csv = await res.text();
             const lines = csv.split('\n').filter(l => l.trim().length > 0).slice(1);
             
-            document.getElementById('fire-count').innerText = lines.length + " rilevamenti";
+            let italianFires = 0; // Contatore per i soli incendi in Italia
 
             lines.forEach(line => {
                 const c = line.split(',');
                 if(c.length > 2) {
                     const lat = parseFloat(c[0]);
                     const lon = parseFloat(c[1]);
-                    const bright = parseFloat(c[2]); 
-                    const col = getColor(bright);
 
-                    const fireIcon = L.divIcon({
-                        html: `<i class="fas fa-fire" style="color: ${col}; font-size: 22px; text-shadow: 0 0 3px black;"></i>`,
-                        className: 'custom-fire-icon',
-                        iconSize: [20, 20],
-                        iconAnchor: [10, 10]
-                    });
+                    // --- IL FILTRO ITALIA ---
+                    // Controlla se il punto è nei confini (Lat: 35-47, Lon: 6-18)
+                    if (lat > 35.4 && lat < 47.1 && lon > 6.6 && lon < 18.5) {
+                        italianFires++; // Incrementa il contatore nazionale
+                        
+                        const bright = parseFloat(c[2]); 
+                        const col = getColor(bright);
 
-                    L.marker([lat, lon], {icon: fireIcon}).addTo(map)
-                     .bindPopup(`<b>Dati Satellite</b><br>Intensità: ${bright}K`);
+                        const fireIcon = L.divIcon({
+                            html: `<i class="fas fa-fire" style="color: ${col}; font-size: 22px; text-shadow: 0 0 3px black;"></i>`,
+                            className: 'custom-fire-icon',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        });
 
-                    L.circle([lat, lon], { color: col, fillColor: col, fillOpacity: 0.2, radius: 2000 }).addTo(map);
+                        L.marker([lat, lon], {icon: fireIcon}).addTo(map)
+                         .bindPopup(`<b>Dati Satellite</b><br>Intensità: ${bright}K<br>Lat: ${lat}<br>Lon: ${lon}`);
+
+                        L.circle([lat, lon], { color: col, fillColor: col, fillOpacity: 0.2, radius: 2000 }).addTo(map);
+                    }
                 }
             });
-        } catch(e) { console.error(e); }
+
+            // Aggiorna il contatore in alto con i soli dati italiani
+            document.getElementById('fire-count').innerText = italianFires + " rilevamenti in Italia";
+
+        } catch(e) { console.error("Errore:", e); }
     }
 
     // 5. AGGIUNTA LEGENDA
