@@ -3,129 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoraggio Incendi Italia - Real Time</title>
+    <title>Monitoraggio Incendi Italia - Sistema Operativo</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .auth-success { border: 2px solid #2ecc71 !important; }
-.hidden { display: none; }
-#admin-panel { 
-    background: #ecf0f1; padding: 10px; border-bottom: 2px solid #bdc3c7; 
-    display: flex; gap: 10px; align-items: center;
-}
-        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        #map { height: calc(100vh - 60px); width: 100%; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; }
+        #map { height: calc(100vh - 100px); width: 100%; }
         header {
             height: 60px; background: #2c3e50; color: white;
             display: flex; align-items: center; padding: 0 20px; justify-content: space-between;
         }
-        .login-box input { padding: 5px; border-radius: 4px; border: none; margin-right: 5px; }
-        .login-box button { padding: 5px 15px; cursor: pointer; background: #e74c3c; color: white; border: none; border-radius: 4px; }
+        .login-box input { padding: 6px; border-radius: 4px; border: none; }
+        .login-box button { padding: 6px 15px; cursor: pointer; background: #e74c3c; color: white; border: none; border-radius: 4px; font-weight: bold; }
+        #admin-panel { 
+            height: 40px; background: #ecf0f1; display: flex; align-items: center; 
+            padding: 0 20px; gap: 15px; border-bottom: 2px solid #bdc3c7;
+        }
+        .hidden { display: none; }
         .info.legend {
-    padding: 10px;
-    background: white;
-    background: rgba(255,255,255,0.9);
-    line-height: 18px;
-    color: #333;
-    border-radius: 5px;
-    box-shadow: 0 0 15px rgba(0,0,0,0.2);
-}
-.info.legend i {
-    width: 18px;
-    height: 18px;
-    float: left;
-    margin-right: 8px;
-    opacity: 0.7;
-}
+            padding: 10px; background: white; background: rgba(255,255,255,0.9);
+            line-height: 18px; color: #333; border-radius: 5px; box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .info.legend i { width: 16px; height: 16px; float: left; margin-right: 8px; opacity: 0.8; }
     </style>
 </head>
 <body>
 
 <header>
     <div>🔥 INCENDI LIVE: <span id="fire-count" style="color:#ffdd59; font-weight:bold;">...</span></div>
-    <div class="login-box" id="login-section">
+    <div id="login-section" class="login-box">
         <input type="password" id="operator-code" placeholder="Codice Operatore">
-        <button onclick="checkAuth()">Verifica</button>
+        <button onclick="checkAuth()">ENTRA</button>
     </div>
     <div id="user-logged" class="hidden" style="color:#2ecc71; font-weight:bold;">
-        ✅ VOLONTARIO ATTIVO
+        <i class="fas fa-user-shield"></i> OPERATORE ATTIVO
     </div>
 </header>
 
 <div id="admin-panel" class="hidden">
-    <strong>Azioni Rapide:</strong>
-    <button onclick="alert('Funzione Segnala Incendio in arrivo!')">Segnala Nuovo Incendio</button>
-    <button onclick="location.reload()">Aggiorna Dati</button>
+    <span style="font-size: 13px; color: #7f8c8d;">PANNELLO COMANDI:</span>
+    <button onclick="alert('Coordinate inviate alla centrale!')" style="font-size:12px;">Segnala Emergenza</button>
+    <button onclick="location.reload()" style="font-size:12px;">Reset Mappa</button>
 </div>
-</header>
 
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Inizializzazione Mappa su Italia
+    // 1. Inizializzazione Mappa
     const map = L.map('map').setView([42.0, 12.5], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-// Funzione per scegliere il colore in base alla temperatura (Bright_t31)
-    function getColor(temp) {
-        return temp > 320 ? '#d73027' : // Rosso (Molto caldo)
-               temp > 310 ? '#f46d43' : // Arancione (Caldo)
-               temp > 300 ? '#fdae61' : // Giallo-Arancio
-                            '#fee08b';   // Giallo (Moderato)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // 2. FUNZIONE AUTENTICAZIONE
+    function checkAuth() {
+        const code = document.getElementById('operator-code').value;
+        const SECRET_CODE = "GABRIELE2024"; // Sostituisci "GABRIELE2024" con la tua password!
+
+        if (code === SECRET_CODE) {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('user-logged').classList.remove('hidden');
+            document.getElementById('admin-panel').classList.remove('hidden');
+            document.getElementById('map').style.height = "calc(100vh - 100px)";
+            map.invalidateSize();
+            alert("Accesso Autorizzato.");
+        } else {
+            alert("Codice Errato.");
+        }
     }
 
+    // 3. LOGICA COLORI NASA
+    function getColor(temp) {
+        return temp > 325 ? '#d73027' : // Rosso
+               temp > 315 ? '#f46d43' : // Arancione
+               temp > 305 ? '#fdae61' : // Giallo
+                            '#fee08b';   // Chiaro
+    }
+
+    // 4. CARICAMENTO DATI
     async function loadNasaData() {
         const NASA_KEY = "6c7f29542d837e182b0bf7292cb52b99";
         const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_KEY}/VIIRS_SNPP_NRT/6,35,19,48/1`;
         
         try {
             const res = await fetch(url);
-            if (!res.ok) throw new Error("Errore: " + res.status);
             const csv = await res.text();
             const lines = csv.split('\n').filter(l => l.trim().length > 0).slice(1);
             
-            document.getElementById('fire-count').innerText = lines.length + " focolai rilevati";
+            document.getElementById('fire-count').innerText = lines.length + " rilevamenti";
 
             lines.forEach(line => {
                 const c = line.split(',');
                 if(c.length > 2) {
                     const lat = parseFloat(c[0]);
                     const lon = parseFloat(c[1]);
-                    const temp = parseFloat(c[2]); // Bright_ti4 o ti5
-                    const color = getColor(temp);
+                    const bright = parseFloat(c[2]); 
+                    const col = getColor(bright);
 
                     const fireIcon = L.divIcon({
-                        html: `<i class="fas fa-fire" style="color: ${color}; font-size: 22px; text-shadow: 0 0 3px black;"></i>`,
+                        html: `<i class="fas fa-fire" style="color: ${col}; font-size: 22px; text-shadow: 0 0 3px black;"></i>`,
                         className: 'custom-fire-icon',
                         iconSize: [20, 20],
                         iconAnchor: [10, 10]
                     });
 
-                    L.marker([lat, lon], {icon: fireIcon})
-                     .addTo(map)
-                     .bindPopup(`<b>🔥 Incendio</b><br>Intensità: ${temp}K<br>Lat: ${lat}`);
+                    L.marker([lat, lon], {icon: fireIcon}).addTo(map)
+                     .bindPopup(`<b>Dati Satellite</b><br>Intensità: ${bright}K`);
 
-                    L.circle([lat, lon], {
-                        color: color, fillColor: color, fillOpacity: 0.3, radius: 2000 
-                    }).addTo(map);
+                    L.circle([lat, lon], { color: col, fillColor: col, fillOpacity: 0.2, radius: 2000 }).addTo(map);
                 }
             });
-        } catch(e) { console.error(e.message); }
+        } catch(e) { console.error(e); }
     }
 
-    // --- AGGIUNGIAMO LA LEGENDA ALLA MAPPA ---
+    // 5. AGGIUNTA LEGENDA
     const legend = L.control({position: 'bottomright'});
-    legend.onAdd = function (map) {
+    legend.onAdd = function () {
         const div = L.DomUtil.create('div', 'info legend');
-        const grades = [0, 300, 310, 320];
-        const labels = ['Moderato', 'Medio', 'Elevato', 'Critico'];
-        const colors = ['#fee08b', '#fdae61', '#f46d43', '#d73027'];
-
-        div.innerHTML = '<b>Intensità</b><br>';
-        for (let i = 0; i < grades.length; i++) {
-            div.innerHTML += '<i style="background:' + colors[i] + '"></i> ' + labels[i] + '<br>';
+        const labels = ['Critico', 'Elevato', 'Medio', 'Basso'];
+        const colors = ['#d73027', '#f46d43', '#fdae61', '#fee08b'];
+        div.innerHTML = '<b>Intensità Fuoco</b><br>';
+        for (let i = 0; i < colors.length; i++) {
+            div.innerHTML += `<i style="background:${colors[i]}"></i> ${labels[i]}<br>`;
         }
         return div;
     };
