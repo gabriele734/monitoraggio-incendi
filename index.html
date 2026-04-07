@@ -83,10 +83,27 @@
                 const lat = parseFloat(c[0]), lon = parseFloat(c[1]), bright = parseFloat(c[2]);
                 const idPunto = `${lat}_${lon}`;
 
-                // Filtro Italia e Punti Rimossi
-                if (lat > 35.4 && lat < 47.1 && lon > 6.6 && lon < 18.5 && !puntiRimossi.includes(idPunto)) {
+                // --- NUOVO FILTRO ITALIA PRECISO ---
+                let isItaly = false;
+                
+                // Nord e Centro (Esclude i Balcani a Est di 14.5°)
+                if (lat > 39.0 && lat < 47.1 && lon > 6.6 && lon < 18.5) {
+                    if (!(lat > 42.0 && lon > 14.5)) isItaly = true;
+                } 
+                // Sud e Sicilia (Sopra la Tunisia)
+                else if (lat > 36.5 && lat <= 39.0 && lon > 12.0 && lon < 18.5) {
+                    isItaly = true;
+                } 
+                // Sardegna
+                else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) {
+                    isItaly = true;
+                }
+
+                // Disegna il punto solo se è in Italia e non è stato rimosso a mano
+                if (isItaly && !puntiRimossi.includes(idPunto)) {
                     count++;
                     const col = getColor(bright);
+                    // ... qui continua il resto del tuo codice per creare il marker ...
                     const fireIcon = L.divIcon({
                         html: `<i class="fas fa-fire" style="color: ${col}; font-size: 22px; text-shadow: 0 0 3px black;"></i>`,
                         className: 'custom-fire-icon', iconSize: [20, 20], iconAnchor: [10, 10]
