@@ -74,22 +74,29 @@
         iconAnchor: [12, 41]
     });
 
-    // --- DATI NASA ---
+// --- 3. DATI NASA (SATELLITE) ---
     const NASA_KEY = "23be8e2bdf02493090dfd0a9667fe3cc";
     async function loadNasaData() {
         try {
-            // USIAMO I BACKTICK ` PER LA NASA_KEY
-            const res = await fetch(`https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/country/csv/${NASA_KEY}/VIIRS_SNPP/ITA/7`);
+            // Usiamo corsproxy.io per sbloccare l'accesso ai dati
+            const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/country/csv/${NASA_KEY}/VIIRS_SNPP/ITA/7`;
+            const res = await fetch(url);
+            
+            if (!res.ok) throw new Error("Errore risposta NASA");
+
             const csv = await res.text();
             const lines = csv.split('\n').slice(1);
+            
             lines.forEach(line => {
                 const c = line.split(',');
                 if(c.length > 2) {
                     L.marker([parseFloat(c[1]), parseFloat(c[2])], {icon: nasaIcon})
-                     .addTo(map).bindPopup("<b>Satellite NASA</b><br>Rilevato calore intenso");
+                     .addTo(map).bindPopup("Rilevamento Satellite NASA");
                 }
             });
-        } catch(e) { console.error("Errore NASA:", e); }
+        } catch(e) { 
+            console.error("Errore NASA:", e); 
+        }
     }
     loadNasaData();
 
