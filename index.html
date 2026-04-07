@@ -84,6 +84,18 @@ async function loadNasaData() {
         const NASA_KEY = "6c7f29542d837e182b0bf7292cb52b99";
         const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_KEY}/VIIRS_SNPP_NRT/6,35,19,48/1`;
         
+        // --- LISTA NERA INDUSTRIALE (Lat, Lon) ---
+        // Aggiungiamo le coordinate delle raffinerie più comuni
+        const raffinerie = [
+            {lat: 40.48, lon: 17.21, nome: "Ex-ILVA Taranto"},
+            {lat: 37.15, lon: 15.19, nome: "Raffineria Priolo"},
+            {lat: 37.06, lon: 14.23, nome: "Raffineria Gela"},
+            {lat: 45.45, lon: 12.24, nome: "Marghera"},
+            {lat: 44.91, lon: 8.83, nome: "Raffineria Sannazzaro"},
+            {lat: 43.58, lon: 10.34, nome: "Raffineria Livorno"},
+            {lat: 40.63, lon: 14.85, nome: "Zona Ind. Salerno"}
+        ];
+
         try {
             const res = await fetch(url);
             const csv = await res.text();
@@ -96,24 +108,25 @@ async function loadNasaData() {
                     const lat = parseFloat(c[0]);
                     const lon = parseFloat(c[1]);
 
-                    // --- FILTRO ITALIA ULTRA-PRECISO ---
+                    // 1. Controllo se è in Italia (Filtro che abbiamo già)
                     let isItaly = false;
-                    
-                    // Nord e Centro Italia
                     if (lat > 39.0 && lat < 47.1 && lon > 6.6 && lon < 18.5) {
-                        // Escludiamo la zona dei Balcani a Est (sopra i 42 gradi di latitudine escludiamo ciò che è oltre i 14 gradi est)
                         if (!(lat > 42.0 && lon > 14.5)) isItaly = true;
-                    }
-                    // Sud Italia e Sicilia
-                    else if (lat > 36.5 && lat <= 39.0 && lon > 12.0 && lon < 18.5) {
+                    } else if (lat > 36.5 && lat <= 39.0 && lon > 12.0 && lon < 18.5) {
                         isItaly = true;
-                    }
-                    // Sardegna
-                    else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) {
+                    } else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) {
                         isItaly = true;
                     }
 
-                    if (isItaly) {
+                    // 2. CONTROLLO ANTI-RAFFINERIA (NOVITÀ)
+                    let isIndustrial = false;
+                    raffinerie.forEach(r => {
+                        // Se il punto è a meno di 2km dalla raffineria, lo ignoriamo
+                        const dist = Math.abs(lat - r.lat) + Math.abs(lon - r.lon);
+                        if (dist < 0.02) isIndustrial = true; 
+                    });
+
+                    if (isItaly && !isIndustrial) {
                         italianFires++;
                         const bright = parseFloat(c[2]); 
                         const col = getColor(bright);
