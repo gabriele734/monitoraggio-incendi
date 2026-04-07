@@ -55,15 +55,12 @@
     const cloudLayer = L.layerGroup().addTo(map);
 
     window.checkAuth = function() {
-        const code = document.getElementById('operator-code').value;
-        if (code === "GABRIELE_STAFF") {
+        if (document.getElementById('operator-code').value === "GABRIELE_STAFF") {
             document.getElementById('login-section').innerHTML = "<span class='staff-tag'>⭐ STAFF ATTIVO</span>";
             loadNasaData();
             loadCloudData();
             addLegend();
-        } else { 
-            alert("Codice Operatore non valido!"); 
-        }
+        } else { alert("Codice Operatore non valido!"); }
     };
 
     async function loadNasaData() {
@@ -85,15 +82,17 @@
                 // --- FILTRI DI ESCLUSIONE DRASTICI ---
                 let isItalia = (lat > 36.5 && lat < 47.1) && (lon > 6.6 && lon < 18.5);
 
-                // 1. Taglio Svizzera (Elimina Berna/Zurigo)
+                // 1. Taglio Svizzera
                 if (lat > 46.55) isItalia = false; 
 
-                // 2. Taglio Balcani/Istria (Elimina Pola e costa croata)
+                // 2. Taglio Balcani (Costa Croata/Bosniaca)
                 if (lon > 13.6 && lat > 42.0) isItalia = false; 
 
-                // 3. Taglio Corsica e Nord Africa
+                // 3. TAGLIO CORSICA (Area cerchiata in nero)
+                if (lon < 9.7 && lat > 41.3 && lat < 43.1) isItalia = false;
+
+                // 4. Taglio Tunisia
                 if (lat < 37.1) isItalia = false; 
-                if (lon < 9.1 && lat < 43.1) isItalia = false;
 
                 if (isItalia) {
                     const temp = (bright - 273.15).toFixed(0);
@@ -103,25 +102,23 @@
                             html: `<i class="fas fa-fire" style="color:${color}; font-size:16px;"></i>`, 
                             className: 'f-icon' 
                         })
-                    }).addTo(nasaLayer).bindPopup(`🔥 Incendio Rilevato: ${temp}°C`);
+                    }).addTo(nasaLayer).bindPopup(`🔥 Incendio: ${temp}°C`);
                     n++;
                 }
             }
             document.getElementById('count').innerText = `${n} Incendi in Italia`;
-        } catch (e) { 
-            console.error("Errore caricamento dati satellitari"); 
-        }
+        } catch (e) { console.error("Errore caricamento dati"); }
     }
 
     function loadCloudData() {
         onSnapshot(collection(db, "segnalazioni"), (snap) => {
             cloudLayer.clearLayers();
             snap.forEach(doc => {
-                const data = doc.data();
-                if (data.lat && data.lon) {
-                    L.marker([data.lat, data.lon], {
+                const d = doc.data();
+                if (d.lat && d.lon) {
+                    L.marker([d.lat, d.lon], {
                         icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c-icon' })
-                    }).addTo(cloudLayer).bindPopup(data.desc || "Segnalazione Operatore");
+                    }).addTo(cloudLayer).bindPopup(d.desc || "Segnalazione");
                 }
             });
         });
@@ -132,9 +129,9 @@
         legend.onAdd = function() {
             const div = L.DomUtil.create('div', 'legend');
             div.innerHTML = '<b>LEGENDA</b><br>' +
-                            '<i class="fas fa-fire" style="color:#d73027"></i> Critico (>50°C)<br>' +
+                            '<i class="fas fa-fire" style="color:#d73027"></i> Critico<br>' +
                             '<i class="fas fa-fire" style="color:#fdae61"></i> Moderato<br>' +
-                            '<i class="fas fa-camera" style="color:purple"></i> Segnalazione Cloud';
+                            '<i class="fas fa-camera" style="color:purple"></i> Cloud';
             return div;
         };
         legend.addTo(map);
@@ -142,13 +139,10 @@
 
     map.on('click', async (e) => {
         if (document.getElementById('login-section').innerHTML.includes("STAFF")) {
-            const desc = prompt("Inserisci descrizione incendio:");
+            const desc = prompt("Descrizione:");
             if (desc) { 
                 await addDoc(collection(db, "segnalazioni"), { 
-                    lat: e.latlng.lat, 
-                    lon: e.latlng.lng, 
-                    desc: desc, 
-                    timestamp: new Date() 
+                    lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, timestamp: new Date() 
                 }); 
             }
         }
