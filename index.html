@@ -59,10 +59,7 @@
     };
 
     async function loadData() {
-        // Pulizia totale prima di iniziare
         nasaLayer.clearLayers();
-        
-        // 1. CARICAMENTO NASA CON FILTRO CHIRURGICO
         try {
             const res = await fetch(`https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/6c7f29542d837e182b0bf7292cb52b99/VIIRS_SNPP_NRT/world/1`);
             const csv = await res.text();
@@ -71,35 +68,44 @@
 
             for (let i = 1; i < lines.length; i++) {
                 const c = lines[i].split(',');
-                if (c.length < 3) continue;
+                // 1. PROTEZIONE TOTALE: Se la riga è incompleta, saltala subito (toglie l'errore rosso)
+                if (c.length < 3 || !c[0] || !c[1]) continue;
 
                 const lat = parseFloat(c[0]);
                 const lon = parseFloat(c[1]);
                 const bright = parseFloat(c[2]);
 
-                // FILTRO ITALIA: Solo punti dentro questi confini
-                if (lat > 35.5 && lat < 47.1 && lon > 6.6 && lon < 18.5) {
+                // 2. FILTRO CHIRURGICO (Solo Italia, niente Croazia o Tunisia)
+                // Nord: 47.1, Sud: 36.5, Ovest: 6.6, Est: 18.5
+                if (lat > 36.5 && lat < 47.1 && lon > 6.6 && lon < 18.5) {
                     const temp = (bright - 273.15).toFixed(0);
                     L.marker([lat, lon], {
-                        icon: L.divIcon({ html: `<i class="fas fa-fire" style="color:${temp > 50 ? 'red' : 'orange'}; font-size:16px;"></i>`, className: 'f' })
+                        icon: L.divIcon({ 
+                            html: `<i class="fas fa-fire" style="color:${temp > 50 ? '#d73027' : '#fdae61'}; font-size:16px;"></i>`, 
+                            className: 'f' 
+                        })
                     }).addTo(nasaLayer).bindPopup(`Incendio Italia: ${temp}°C`);
                     n++;
                 }
             }
             document.getElementById('count').innerText = `${n} Incendi in Italia`;
-        } catch (err) { console.error("Errore NASA"); }
+        } catch (err) { 
+            console.error("Errore caricamento"); 
+        }
 
-        // 2. CARICAMENTO CLOUD
+        // CARICAMENTO CLOUD (Database Google)
         onSnapshot(collection(db, "segnalazioni"), (snap) => {
             cloudLayer.clearLayers();
             snap.forEach(d => {
                 const s = d.data();
-                L.marker([s.lat, s.lon], {
-                    icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c' })
-                }).addTo(cloudLayer).bindPopup(s.desc);
+                if(s.lat && s.lon) { // Altra protezione per il cloud
+                   L.marker([s.lat, s.lon], {
+                       icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c' })
+                   }).addTo(cloudLayer).bindPopup(s.desc);
+                }
             });
         });
-
+    }
         // Aggiungi Legenda
         const leg = L.control({position: 'bottomright'});
         leg.onAdd = () => {
