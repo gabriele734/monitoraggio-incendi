@@ -133,13 +133,16 @@
         }
     });
 
-    // Ascolta il database e aggiorna la mappa senza ricaricare
+// Sostituisci l'ultima parte (onSnapshot) con questa:
     onSnapshot(collection(db, "segnalazioni"), (snap) => {
         snap.docChanges().forEach(change => {
             if (change.type === "added") {
                 const d = change.doc.data();
+                // Creiamo una data leggibile invece di lasciarlo al caso
+                const dataOra = d.time && d.time.seconds ? new Date(d.time.seconds * 1000).toLocaleString() : "Data non disponibile";
+                
                 L.marker([d.lat, d.lng], {icon: volontarioIcon}).addTo(map)
-                 .bindPopup(`<b>Segnalazione Volontaria</b><br>${d.desc}<br><small>${d.user}</small>`);
+                 .bindPopup(`<b>Segnalazione Volontaria</b><br>${d.desc}<br><small>Inviato da: ${d.user}</small><br><small>${dataOra}</small>`);
             }
         });
     });
