@@ -3,175 +3,210 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Centrale Operativa Incendi - Pro</title>
+    <title>Centrale Operativa Incendi - Pro Cloud</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; }
-        #map { height: calc(100vh - 60px); width: 100%; cursor: crosshair; }
-        header {
-            height: 60px; background: #2c3e50; color: white;
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #map { height: calc(100vh - 60px); width: 100%; cursor: crosshair; background: #f0f0f0; }
+        header { 
+            height: 60px; background: #2c3e50; color: white; 
             display: flex; align-items: center; padding: 0 20px; justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
         }
-        .login-box input { padding: 6px; border-radius: 4px; border: none; margin-right: 5px; }
-        .login-box button { padding: 6px 15px; cursor: pointer; background: #e74c3c; color: white; border: none; border-radius: 4px; font-weight: bold; }
-        #admin-panel { height: 40px; background: #ecf0f1; display: flex; align-items: center; padding: 0 20px; gap: 15px; border-bottom: 2px solid #bdc3c7; }
-        .hidden { display: none; }
-        .btn-delete { background: #e74c3c; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; margin-top: 10px; width: 100%; font-weight: bold; }
-        .btn-send { background: #3498db; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; width: 100%; font-weight: bold; margin-top: 5px; }
-        .status-tag { padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+        .login-box input { padding: 8px; border-radius: 4px; border: none; margin-right: 5px; width: 140px; }
+        .login-box button { padding: 8px 15px; cursor: pointer; background: #e74c3c; color: white; border: none; border-radius: 4px; font-weight: bold; }
+        .status-tag { padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 13px; display: flex; align-items: center; gap: 5px; }
         .status-staff { background: #2ecc71; color: white; }
         .status-volontario { background: #3498db; color: white; }
-        .preview-img { width: 100%; max-height: 150px; object-fit: cover; border-radius: 4px; margin-top: 8px; border: 1px solid #ddd; }
-        textarea { width: 100%; border: 1px solid #ccc; border-radius: 4px; margin-top: 5px; font-family: inherit; box-sizing: border-box; }
+        .hidden { display: none; }
+        
+        /* Stile Legenda */
+        .legend {
+            background: white; padding: 12px; line-height: 22px; color: #333;
+            border-radius: 8px; box-shadow: 0 0 15px rgba(0,0,0,0.2); border: 1px solid #ccc;
+        }
+        .legend i { width: 20px; height: 20px; float: left; margin-right: 10px; text-align: center; }
+        
+        .btn-delete { background: #ff4757; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; margin-top: 5px; font-size: 11px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div>🔥 CENTRALE INCENDI: <span id="fire-count" style="color:#ffdd59; font-weight:bold;">Caricamento...</span></div>
+    <div style="display:flex; align-items:center; gap:10px;">
+        <i class="fas fa-satellite-dish" style="color:#ffdd59;"></i>
+        <div id="fire-count" style="font-weight:bold;">Centrale: Connessione Cloud...</div>
+    </div>
+    
     <div id="login-section" class="login-box">
-        <input type="password" id="operator-code" placeholder="Codice Accesso">
+        <input type="password" id="operator-code" placeholder="Codice Operatore">
         <button onclick="checkAuth()">ENTRA</button>
     </div>
+    
     <div id="user-logged" class="hidden">
         <span id="role-label" class="status-tag"></span>
     </div>
 </header>
 
-<div id="admin-panel" class="hidden">
-    <button onclick="location.reload()" style="font-size:12px;">Aggiorna Mappa</button>
-    <div id="staff-only-actions" class="hidden">
-        <button onclick="resetTutto()" style="font-size:12px; background:#bdc3c7;">Resetta Memoria (Staff)</button>
-    </div>
-</div>
-
 <div id="map"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-    const map = L.map('map').setView([42.0, 12.5], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+<script type="module">
+    // Importazione SDK Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    // Tua configurazione personale
+    const firebaseConfig = {
+        apiKey: "AIzaSyClmNoNbNpxk5IjB9LsrQvWqPI1YodxY9E",
+        authDomain: "monitoraggioincendi-41f5f.firebaseapp.com",
+        projectId: "monitoraggioincendi-41f5f",
+        storageBucket: "monitoraggioincendi-41f5f.firebasestorage.app",
+        messagingSenderId: "63942195354",
+        appId: "1:63942195354:web:cc5bb978858676c6748723"
+    };
+
+    // Inizializzazione
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // Creazione Mappa centata su Imola/Centro Italia
+    const map = L.map('map').setView([43.5, 12.0], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
     let userRole = null;
-    let puntiRimossi = JSON.parse(localStorage.getItem('puntiRimossi')) || [];
-    let segnalazioniManuali = JSON.parse(localStorage.getItem('segnalazioniManuali')) || [];
-    let markersLayer = L.layerGroup().addTo(map);
     let manualLayer = L.layerGroup().addTo(map);
+    let nasaLayer = L.layerGroup().addTo(map);
 
-    function checkAuth() {
+    // Funzione di Login
+    window.checkAuth = function() {
         const code = document.getElementById('operator-code').value;
         const roleLabel = document.getElementById('role-label');
+        
         if (code === "GABRIELE_STAFF") {
             userRole = 'staff';
-            roleLabel.innerText = "⭐ STAFF";
+            roleLabel.innerHTML = '<i class="fas fa-star"></i> STAFF GABRIELE';
             roleLabel.className = "status-tag status-staff";
-            document.getElementById('staff-only-actions').classList.remove('hidden');
         } else if (code === "VOLONTARIO2024") {
             userRole = 'volontario';
-            roleLabel.innerText = "👥 VOLONTARIO";
+            roleLabel.innerHTML = '<i class="fas fa-user-shield"></i> VOLONTARIO';
             roleLabel.className = "status-tag status-volontario";
-        } else { alert("Codice Errato."); return; }
-        
+        } else {
+            alert("Codice Accesso Errato.");
+            return;
+        }
+
         document.getElementById('login-section').classList.add('hidden');
         document.getElementById('user-logged').classList.remove('hidden');
-        document.getElementById('admin-panel').classList.remove('hidden');
-        loadNasaData();
-        renderManuali();
-    }
+        loadNasaData(); // Carica i satelliti solo dopo il login
+    };
 
-    map.on('click', function(e) {
-        if (!userRole) return;
-        const lat = e.latlng.lat;
-        const lon = e.latlng.lng;
-        const div = document.createElement('div');
-        div.innerHTML = `<b>📝 Nuova Segnalazione</b><br><textarea id="desc" rows="3" placeholder="Descrizione..."></textarea><br><input type="file" id="photo" accept="image/*" style="font-size:11px; margin-top:5px;"><br><button class="btn-send" id="sendBtn">INVIA</button>`;
-        const popup = L.popup().setLatLng(e.latlng).setContent(div).openOn(map);
-        document.getElementById('sendBtn').onclick = function() {
-            const desc = document.getElementById('desc').value;
-            const file = document.getElementById('photo').files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => salvaSegnalazione(lat, lon, desc, ev.target.result);
-                reader.readAsDataURL(file);
-            } else { salvaSegnalazione(lat, lon, desc, null); }
-        };
+    // 1. Sincronizzazione in tempo reale con Firebase (Icone Viola)
+    onSnapshot(collection(db, "segnalazioni"), (snapshot) => {
+        manualLayer.clearLayers();
+        snapshot.forEach((docSnap) => {
+            const s = docSnap.data();
+            const iconViola = L.divIcon({
+                html: '<i class="fas fa-camera" style="color: #9b59b6; font-size: 22px; text-shadow: 0 0 3px white;"></i>',
+                className: 'm-icon', iconSize: [20, 20]
+            });
+
+            let popupMsg = `<b>📍 SEGNALAZIONE CLOUD</b><br><small>${s.ora}</small><br><hr><i>"${s.desc}"</i>`;
+            if (userRole === 'staff') {
+                popupMsg += `<br><button class="btn-delete" onclick="window.eliminaPunto('${docSnap.id}')">Elimina</button>`;
+            }
+
+            L.marker([s.lat, s.lon], {icon: iconViola}).addTo(manualLayer).bindPopup(popupMsg);
+        });
+        aggiornaConteggio();
     });
 
-    function salvaSegnalazione(lat, lon, desc, img) {
-        segnalazioniManuali.push({ id: 'm_'+Date.now(), lat, lon, desc, img, ora: new Date().toLocaleString('it-IT') });
-        localStorage.setItem('segnalazioniManuali', JSON.stringify(segnalazioniManuali));
-        map.closePopup();
-        renderManuali();
-    }
+    // Funzione per eliminare (solo Staff)
+    window.eliminaPunto = async (id) => {
+        if(confirm("Eliminare definitivamente questa segnalazione?")) {
+            await deleteDoc(doc(db, "segnalazioni", id));
+        }
+    };
 
-    function renderManuali() {
-        manualLayer.clearLayers();
-        segnalazioniManuali.forEach(s => {
-            const icon = L.divIcon({ html: `<i class="fas fa-camera" style="color: #9b59b6; font-size: 24px;"></i>`, className: 'm-icon' });
-            let html = `<b>📍 RAPPORTO UMANO</b><br><small>${s.ora}</small><br><i>"${s.desc || ''}"</i>`;
-            if (s.img) html += `<br><img src="${s.img}" class="preview-img">`;
-            if (userRole === 'staff') html += `<br><button class="btn-delete" onclick="eliminaManuale('${s.id}')">Elimina</button>`;
-            L.marker([s.lat, s.lon], {icon}).addTo(manualLayer).bindPopup(html, {minWidth: 200});
-        });
-    }
+    // 2. Invio Nuova Segnalazione (Click sulla mappa)
+    map.on('click', async (e) => {
+        if (!userRole) {
+            alert("Effettua il login per inserire segnalazioni.");
+            return;
+        }
+        const desc = prompt("Inserisci descrizione dell'incendio/fumo:");
+        if (desc) {
+            try {
+                await addDoc(collection(db, "segnalazioni"), {
+                    lat: e.latlng.lat,
+                    lon: e.latlng.lng,
+                    desc: desc,
+                    ora: new Date().toLocaleString('it-IT'),
+                    autore: userRole
+                });
+            } catch (err) {
+                alert("Errore nel salvataggio Cloud.");
+            }
+        }
+    });
 
-    function eliminaManuale(id) {
-        segnalazioniManuali = segnalazioniManuali.filter(x => x.id !== id);
-        localStorage.setItem('segnalazioniManuali', JSON.stringify(segnalazioniManuali));
-        renderManuali();
-    }
-
+    // 3. Dati NASA FIRMS con conversione Celsius
     async function loadNasaData() {
         const NASA_KEY = "6c7f29542d837e182b0bf7292cb52b99";
+        // Area Italia approssimativa per il filtro
         const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_KEY}/VIIRS_SNPP_NRT/6,35,19,48/1`;
+        
         try {
             const res = await fetch(url);
             const csv = await res.text();
             const lines = csv.split('\n').slice(1);
-            markersLayer.clearLayers();
-            let count = 0;
+            nasaLayer.clearLayers();
+
             lines.forEach(line => {
                 const c = line.split(',');
                 if (c.length < 3) return;
+
                 const lat = parseFloat(c[0]), lon = parseFloat(c[1]), bright = parseFloat(c[2]);
                 const celsius = (bright - 273.15).toFixed(1);
-                const idPunto = `${lat}_${lon}`;
 
-                let isItaly = false;
-                if (lat >= 44.8 && lat <= 47.1 && lon >= 6.6 && lon <= 13.5) isItaly = true;
-                else if (lat >= 44.0 && lat < 44.8 && lon >= 6.6 && lon <= 13.8) isItaly = true;
-                else if (lat >= 39.5 && lat < 44.0 && lon >= 7.2 && lon <= 15.5) {
-                    isItaly = true;
-                    if (lon < 9.6 && lat > 41.3 && lat < 43.1) isItaly = false;
-                }
-                else if (lat >= 36.5 && lat < 39.5 && lon >= 12.0 && lon <= 18.8) isItaly = true;
-                else if (lat >= 38.8 && lat <= 41.3 && lon >= 8.0 && lon <= 10.0) isItaly = true;
+                // Colore dinamico: Rosso se > 50°C, Arancione se minore
+                const colore = celsius > 50 ? '#d73027' : '#fdae61';
+                
+                const iconFuoco = L.divIcon({
+                    html: `<i class="fas fa-fire" style="color: ${colore}; font-size: 18px;"></i>`,
+                    className: 'f-icon', iconSize: [18, 18]
+                });
 
-                if (isItaly && !puntiRimossi.includes(idPunto)) {
-                    count++;
-                    const col = bright > 325 ? '#d73027' : bright > 315 ? '#f46d43' : '#fdae61';
-                    const icon = L.divIcon({ html: `<i class="fas fa-fire" style="color: ${col}; font-size: 22px;"></i>`, className: 'f-icon' });
-                    let pop = `<b>🔥 Satellite</b><br>Temperatura: <b>${celsius}°C</b>`;
-                    if (userRole === 'staff') pop += `<br><button class="btn-delete" onclick="rimuoviPunto('${idPunto}')">Elimina</button>`;
-                    L.marker([lat, lon], {icon}).addTo(markersLayer).bindPopup(pop);
-                }
+                L.marker([lat, lon], {icon: iconFuoco}).addTo(nasaLayer)
+                 .bindPopup(`<b>🔥 Focolaio Satellite</b><br>Temperatura: <b>${celsius}°C</b><br><small>Rilevato da NASA FIRMS</small>`);
             });
-            document.getElementById('fire-count').innerText = count + " satellitari + " + segnalazioniManuali.length + " manuali";
-        } catch(e) { console.error(e); }
+            aggiornaConteggio();
+        } catch (e) {
+            console.error("Errore NASA:", e);
+        }
     }
 
-    function rimuoviPunto(id) {
-        puntiRimossi.push(id);
-        localStorage.setItem('puntiRimossi', JSON.stringify(puntiRimossi));
-        loadNasaData();
+    function aggiornaConteggio() {
+        const nSat = nasaLayer.getLayers().length;
+        const nMan = manualLayer.getLayers().length;
+        document.getElementById('fire-count').innerText = `Centrale: ${nSat} Satellite + ${nMan} Cloud`;
     }
 
-    function resetTutto() {
-        if(confirm("Vuoi azzerare tutto?")) { localStorage.clear(); location.reload(); }
-    }
+    // 4. Aggiunta Legenda in basso a destra
+    const legend = L.control({position: 'bottomright'});
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML += '<b>LEGENDA MAPPA</b><br>';
+        div.innerHTML += '<i class="fas fa-fire" style="color: #d73027"></i> Incendio Intenso (>50°C)<br>';
+        div.innerHTML += '<i class="fas fa-fire" style="color: #fdae61"></i> Focolaio Moderato<br>';
+        div.innerHTML += '<i class="fas fa-camera" style="color: #9b59b6"></i> Segnalazione Cloud<br>';
+        div.innerHTML += '<hr><small>Sincronizzazione Cloud Attiva</small>';
+        return div;
+    };
+    legend.addTo(map);
 
-    loadNasaData();
 </script>
 </body>
 </html>
