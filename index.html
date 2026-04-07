@@ -48,6 +48,11 @@
             const csv = await res.text();
             const lines = csv.split('\n').slice(1);
             
+            // --- NOVITÀ: Conta e mostra il totale ---
+            const totalFires = lines.filter(line => line.trim().length > 0).length;
+            document.getElementById('fire-count').innerText = totalFires + " focolai rilevati";
+            // ---------------------------------------
+
             lines.forEach(line => {
                 const c = line.split(',');
                 if(c.length > 2) {
