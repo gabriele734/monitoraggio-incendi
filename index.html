@@ -78,11 +78,12 @@
     const NASA_KEY = "23be8e2bdf02493090dfd0a9667fe3cc";
     async function loadNasaData() {
         try {
-            // Usiamo corsproxy.io per sbloccare l'accesso ai dati
-            const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_KEY}/VIIRS_SNPP/12,41,13,42/1`;
-            const res = await fetch(url);
+            // Definiamo un rettangolo che copre l'Italia (Longitudine e Latitudine)
+            const areaItalia = "6,35,19,48"; 
+            const url = `https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/${NASA_KEY}/VIIRS_SNPP/${areaItalia}/1`;
             
-            if (!res.ok) throw new Error("Errore risposta NASA");
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Chiave non abilitata per questo servizio");
 
             const csv = await res.text();
             const lines = csv.split('\n').slice(1);
@@ -91,9 +92,10 @@
                 const c = line.split(',');
                 if(c.length > 2) {
                     L.marker([parseFloat(c[1]), parseFloat(c[2])], {icon: nasaIcon})
-                     .addTo(map).bindPopup("Rilevamento Satellite NASA");
+                     .addTo(map).bindPopup("<b>Satellite NASA</b><br>Rilevato calore intenso");
                 }
             });
+            console.log("Dati NASA caricati correttamente!");
         } catch(e) { 
             console.error("Errore NASA:", e); 
         }
