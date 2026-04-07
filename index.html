@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoraggio Incendi Italia - Sistema Operativo</title>
+    <title>Monitoraggio Incendi Italia - Operativo</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -86,27 +86,13 @@
                     const bright = parseFloat(c[2]);
                     const idPunto = `${lat}_${lon}`;
 
-                    // --- FILTRO ITALIA GEOGRAFICO RIGIDO ---
                     let isItaly = false;
+                    // Filtro Italia preciso (Esclude i Balcani a Est di 13.8)
+                    if (lat >= 44.0 && lat <= 47.1 && lon >= 6.6 && lon <= 13.8) isItaly = true;
+                    else if (lat >= 39.5 && lat < 44.0 && lon >= 7.0 && lon <= 15.5) isItaly = true;
+                    else if (lat >= 36.5 && lat < 39.5 && lon >= 12.0 && lon <= 18.8) isItaly = true;
+                    else if (lat >= 38.8 && lat <= 41.5 && lon >= 8.0 && lon <= 10.0) isItaly = true;
 
-                    // 1. Nord e Centro: escludiamo tutto ciò che è a Est di Trieste/Venezia
-                    if (lat >= 44.0 && lat <= 47.1) {
-                        if (lon >= 6.6 && lon <= 13.8) isItaly = true; 
-                    }
-                    // 2. Centro e Sud: escludiamo i Balcani (oltre il mare Adriatico)
-                    else if (lat >= 39.5 && lat < 44.0) {
-                        if (lon >= 7.0 && lon <= 15.5) isItaly = true;
-                    }
-                    // 3. Estremo Sud e Sicilia
-                    else if (lat >= 36.5 && lat < 39.5) {
-                        if (lon >= 12.0 && lon <= 18.8) isItaly = true;
-                    }
-                    // 4. Sardegna
-                    else if (lat >= 38.8 && lat <= 41.5 && lon >= 8.0 && lon <= 10.0) {
-                        isItaly = true;
-                    }
-
-                    // Disegna solo se è in Italia e non è stato rimosso manualmente
                     if (isItaly && !puntiRimossi.includes(idPunto)) {
                         count++;
                         const col = getColor(bright);
@@ -125,18 +111,10 @@
                     }
                 }
             });
-
-                    let popupContent = `<b>🔥 Segnalazione</b><br>Intensità: ${bright}K`;
-                    if (isLogged) {
-                        popupContent += `<br><button class="btn-delete" onclick="rimuoviPunto('${idPunto}')">Elimina Segnalazione</button>`;
-                    }
-
-                    L.marker([lat, lon], {icon: fireIcon}).addTo(markersLayer).bindPopup(popupContent);
-                    L.circle([lat, lon], { color: col, fillColor: col, fillOpacity: 0.2, radius: 1500 }).addTo(markersLayer);
-                }
-            });
             document.getElementById('fire-count').innerText = count + " focolai in Italia";
-        } catch(e) { console.error(e); }
+        } catch(e) { 
+            console.error(e); 
+        }
     }
 
     function rimuoviPunto(id) {
@@ -164,7 +142,6 @@
         return div;
     };
     legend.addTo(map);
-
     loadNasaData();
 </script>
 </body>
