@@ -15,6 +15,19 @@
         .btn-news { background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 15px; }
         .btn-login { padding: 8px 15px; background: #e74c3c; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
         #stat { font-weight: bold; font-size: 1.1em; color: #fff; }
+
+        /* Stile Legenda Reintegrato */
+        .legend { 
+            background: rgba(255, 255, 255, 0.9); 
+            padding: 10px; 
+            border-radius: 8px; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.5); 
+            line-height: 24px; 
+            color: #333; 
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .legend i { width: 18px; text-align: center; margin-right: 8px; }
     </style>
 </head>
 <body>
@@ -55,50 +68,34 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
     
-    // --- BLACKLIST INTEGRALE 100% (STORICA + RECENTE) ---
+    // --- BLACKLIST INTEGRALE 100% (TUTTA LA STORIA) ---
     const blacklist = [
-        // CATEGORIA 1: RICHIESTE SPECIFICHE DI OGGI
-        {lat:41.13, lon:15.45}, // Prysmian (Sette Torri)
-        {lat:42.04, lon:14.72}, // Z.I. San Salvo (Piane Sant'Angelo)
-        {lat:44.78, lon:10.73}, // Panaria Ceramiche (Canaletto)
-        {lat:45.44, lon:10.49}, // Feralpi Siderurgica (Lonato)
-        {lat:45.69, lon:11.44}, // Rossifloor (Marano Vicentino)
-        {lat:45.72, lon:11.38}, // Z.I. Schio (Zanè)
-        {lat:45.73, lon:11.78}, // Aggregato Cassola
-        {lat:45.92, lon:12.31}, // Z.I. Vittorio Veneto
-        {lat:46.20, lon:13.13}, // Ferriere Nord (Rivoli)
-        {lat:45.85, lon:8.97},  // Z.I. Stabio (Svizzera)
-        {lat:46.96, lon:7.16},  // Galmiz (Svizzera)
-
-        // CATEGORIA 2: RAFFINERIE E POLI PETROLCHIMICI (PUNTI STORICI)
-        {lat:45.10, lon:8.82},  // Sannazzaro (Raffineria ENI)
-        {lat:45.45, lon:12.23}, // Porto Marghera
-        {lat:37.20, lon:15.17}, // Priolo Gargallo
-        {lat:37.13, lon:15.18}, // Augusta
-        {lat:40.59, lon:18.03}, // Brindisi Petrolchimico
-        {lat:40.48, lon:17.22}, // Taranto (ILVA/Raffineria)
-        {lat:38.20, lon:15.24}, // Milazzo Raffineria
-        {lat:39.09, lon:9.01},  // Sarroch (Saras)
-        {lat:43.58, lon:10.33}, // Livorno (Raffineria ENI)
-        {lat:44.29, lon:8.44},  // Vado Ligure
-        {lat:43.62, lon:13.36}, // Falconara Marittima (Raffineria API)
-
-        // CATEGORIA 3: ZONE INDUSTRIALI NORD E CENTRO
-        {lat:45.47, lon:10.22}, // Brescia Est
-        {lat:45.15, lon:9.97},  // Cremona
-        {lat:45.64, lon:9.61},  // Dalmine
-        {lat:45.72, lon:9.47},  // Lecco
-        {lat:45.79, lon:8.70},  // Vergiate
-        {lat:45.38, lon:11.92}, // Padova Z.I.
-        {lat:44.54, lon:10.78}, // Sassuolo (Area Ceramiche)
-        {lat:45.10, lon:7.51},  // Torino Est / Settimo Torinese
-
-        // CATEGORIA 4: SARDEGNA E ISOLE
-        {lat:40.58, lon:9.71},  // Sardegna Est (Area industriale/termica)
-        {lat:39.20, lon:8.39},  // Portoscuso / Sulcis
-        {lat:37.75, lon:14.99}, // Etna (Attività vulcanica)
-        {lat:38.79, lon:15.21}  // Stromboli
+        {lat:41.13, lon:15.45}, {lat:42.04, lon:14.72}, {lat:44.78, lon:10.73}, 
+        {lat:45.44, lon:10.49}, {lat:45.69, lon:11.44}, {lat:45.72, lon:11.38}, 
+        {lat:45.73, lon:11.78}, {lat:45.92, lon:12.31}, {lat:46.20, lon:13.13}, 
+        {lat:45.85, lon:8.97},  {lat:46.96, lon:7.16}, {lat:45.10, lon:8.82},  
+        {lat:45.45, lon:12.23}, {lat:37.20, lon:15.17}, {lat:37.13, lon:15.18}, 
+        {lat:40.59, lon:18.03}, {lat:40.48, lon:17.22}, {lat:38.20, lon:15.24}, 
+        {lat:39.09, lon:9.01},  {lat:43.58, lon:10.33}, {lat:44.29, lon:8.44},  
+        {lat:43.62, lon:13.36}, {lat:45.47, lon:10.22}, {lat:45.15, lon:9.97},  
+        {lat:45.64, lon:9.61},  {lat:45.72, lon:9.47},  {lat:45.79, lon:8.70},  
+        {lat:45.38, lon:11.92}, {lat:44.54, lon:10.78}, {lat:45.10, lon:7.51},  
+        {lat:40.58, lon:9.71},  {lat:39.20, lon:8.39},  {lat:37.75, lon:14.99}, 
+        {lat:38.79, lon:15.21}
     ];
+
+    // --- FUNZIONE LEGENDA REINTEGRATA ---
+    const legend = L.control({position: 'bottomleft'});
+    legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = `
+            <div><i class="fas fa-fire" style="color:#d73027"></i> Incendio Satellite</div>
+            <div><i class="fas fa-camera" style="color:purple"></i> Segnalazione Staff</div>
+            <div style="margin-top:5px; font-size:10px; color:#666; border-top:1px solid #ccc">Filtro Antartide/Balcani Attivo</div>
+        `;
+        return div;
+    };
+    legend.addTo(map);
 
     async function loadNasaData() {
         try {
@@ -115,16 +112,14 @@
                 const lon = parseFloat(c[1]);
 
                 let inArea = false;
-                // --- FILTRI CONFINI NAZIONALI ---
-                if (lat > 44.2 && lat < 47.1 && lon > 6.6 && lon < 13.5) inArea = true; // Nord
-                else if (lat > 37.5 && lat <= 44.2 && lon > 8.0 && lon < 17.5) inArea = true; // Centro-Sud (No Balcani)
-                else if (lat > 36.5 && lat <= 37.5 && lon > 12.1 && lon < 15.6) inArea = true; // Sicilia (No Tunisia)
-                else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) inArea = true; // Sardegna
+                if (lat > 44.2 && lat < 47.1 && lon > 6.6 && lon < 13.5) inArea = true; 
+                else if (lat > 37.5 && lat <= 44.2 && lon > 8.0 && lon < 17.5) inArea = true; 
+                else if (lat > 36.5 && lat <= 37.5 && lon > 12.1 && lon < 15.6) inArea = true; 
+                else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) inArea = true;
 
                 if (inArea) {
                     let skip = false;
                     blacklist.forEach(s => { 
-                        // Raggio di tolleranza leggermente aumentato (0.06) per coprire intere fabbriche
                         if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.06) skip=true; 
                     });
                     if(skip) continue;
