@@ -64,9 +64,9 @@
     
     const map = L.map('map').setView([42.0, 12.5], 6);
 
-    // --- AGGIORNAMENTO VIABILITÀ: OSM Humanitarian (Ottimo per strade bianche e sentieri) ---
-    L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors, Humanitarian OpenStreetMap Team',
+    // --- AGGIORNAMENTO: MAPPA SATELLITARE (Esri World Imagery) ---
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EBP, and the GIS User Community',
         maxZoom: 19
     }).addTo(map);
 
@@ -124,7 +124,7 @@
         const div = L.DomUtil.create('div', 'legend');
         div.innerHTML = `<div><i class="fas fa-fire" style="color:#d73027"></i> Incendio Satellite</div>
                          <div><i class="fas fa-camera" style="color:purple"></i> Alert Operativo</div>
-                         <div style="border-top: 1px solid #ccc; margin-top: 5px; font-weight: normal; font-size: 11px;">Viabilità forestale inclusa</div>`;
+                         <div style="border-top: 1px solid #ccc; margin-top: 5px; font-weight: normal; font-size: 11px;">Vista Satellitare Attiva</div>`;
         return div;
     };
     legend.addTo(map);
