@@ -53,9 +53,10 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
 
-    // BLACKLIST RIMOZIONE TOTALE (Nessuna icona, nessun conteggio)
+    // BLACKLIST RIMOZIONE TOTALE (Invisibile e fuori dal conteggio)
     const blacklist = [
-        {lat: 40.58, lon: 9.71,  name: "Zona Industriale Siniscola"}, // Nuova rimozione
+        {lat: 45.38, lon: 11.92, name: "Acciaierie Venete"}, // Nuova rimozione Ponte San Nicolò
+        {lat: 40.58, lon: 9.71,  name: "Zona Industriale Siniscola"},
         {lat: 39.20, lon: 8.39,  name: "Portovesme"}, 
         {lat: 40.59, lon: 18.03, name: "Enipower Brindisi"}, 
         {lat: 37.20, lon: 15.17, name: "Sonatrach Augusta"}, 
@@ -104,10 +105,10 @@
                     let shouldSkip = false;
                     blacklist.forEach(site => {
                         const d = Math.sqrt(Math.pow(lat - site.lat, 2) + Math.pow(lon - site.lon, 2));
-                        if (d < 0.08) shouldSkip = true; // Salta falsi positivi industriali
+                        if (d < 0.08) shouldSkip = true; 
                     });
 
-                    if (shouldSkip) continue;
+                    if (shouldSkip) continue; // Salto il punto industriale
 
                     nReal++;
                     let iconHtml = `<i class="fas fa-fire" style="color:${temp > 60 ? '#d73027' : '#fdae61'}; font-size:16px;"></i>`;
@@ -144,13 +145,6 @@
         };
         legend.addTo(map);
     }
-
-    map.on('click', async (e) => {
-        if (document.getElementById('login-section').innerHTML.includes("OPERATIVO")) {
-            const desc = prompt("Descrizione evento:");
-            if (desc) await addDoc(collection(db, "segnalazioni"), { lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, timestamp: new Date() });
-        }
-    });
 </script>
 </body>
 </html>
