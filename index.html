@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MONITORAGGIO INCENDI ITALIA - SISTEMA INTEGRATO</title>
+    <title>MONITORAGGIO INCENDI ITALIA - SISTEMA INTEGRATO PRO</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
@@ -14,27 +14,29 @@
         #stat { font-weight: bold; font-size: 1.1em; color: #fff; line-height: 1.2; }
         .sub-stat { font-size: 0.7em; color: #ffa500; display: block; }
 
-        /* Effetto Radar Pulsante */
+        /* Effetto Radar Pulsante Dinamico */
         @keyframes pulse {
             0% { transform: scale(0.8); opacity: 0.8; }
             50% { transform: scale(1.5); opacity: 0.2; }
             100% { transform: scale(0.8); opacity: 0.8; }
         }
         .fire-pulse {
-            width: 40px; height: 40px; background: rgba(255, 69, 0, 0.4);
-            border: 2px solid #ff4500; border-radius: 50%;
+            width: 40px; height: 40px; border-radius: 50%;
             position: absolute; margin-left: -10px; margin-top: -10px;
             animation: pulse 1.5s infinite; pointer-events: none;
+            /* Colore di default grigio (in analisi) */
+            background: rgba(150, 150, 150, 0.4); border: 2px solid #999;
         }
 
-        /* Legenda Doppia e Intensità */
+        /* Legenda Unificata a Destra */
         .info.legend {
-            background: rgba(255, 255, 255, 0.9); padding: 10px; border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.3); line-height: 18px; font-size: 11px;
-            max-width: 200px;
+            background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3); line-height: 18px; font-size: 11px;
+            max-width: 220px; color: #333;
         }
-        .legend b { display: block; margin-bottom: 5px; border-bottom: 1px solid #ccc; padding-bottom: 2px; }
-        .legend i { width: 14px; height: 14px; float: left; margin-right: 8px; border-radius: 2px; }
+        .legend b { display: block; margin-bottom: 6px; border-bottom: 1px solid #ddd; padding-bottom: 3px; font-size: 12px; color: #000; }
+        .legend-section { margin-bottom: 10px; }
+        .legend i { width: 16px; height: 16px; float: left; margin-right: 8px; border-radius: 3px; opacity: 0.9; }
 
         .weather-widget { border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; }
         .risk-badge { display: inline-block; padding: 3px 8px; border-radius: 4px; color: white; font-weight: bold; margin-top: 5px; font-size: 10px; }
@@ -75,20 +77,25 @@
     const baseMaps = { "🛰️ Vista Satellitare": satellite, "⛰️ Mappa Topografica": topografica };
     L.control.layers(baseMaps, { "🔥 Incendi NASA": nasaLayer }, { collapsed: false }).addTo(map);
 
-    // Legenda Doppia e Intensità
-    const legend = L.control({position: 'bottomleft'});
+    // Legenda Unificata a Destra (Spostata da bottomleft a bottomright)
+    const legend = L.control({position: 'bottomright'});
     legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'info legend');
         div.innerHTML = `
-            <b>TIPOLOGIA ALERT</b>
-            <div><i class="fas fa-fire" style="color:#ff4500; font-size:12px;"></i> Incendio Attivo</div>
-            <div style="margin-bottom:8px;"><i class="fas fa-camera" style="color:purple; font-size:12px;"></i> Alert Operativo</div>
+            <div class="legend-section">
+                <b>TIPOLOGIA ALERT</b>
+                <div><i class="fas fa-fire" style="color:#ff4500; font-size:12px; background:none;"></i> Incendio Attivo</div>
+                <div><i class="fas fa-camera" style="color:purple; font-size:12px; background:none;"></i> Alert Operativo</div>
+            </div>
             
-            <b>INTENSITÀ RISCHIO</b>
-            <div><i style="background:#c0392b"></i> Molto Alto</div>
-            <div><i style="background:#e67e22"></i> Alto</div>
-            <div><i style="background:#f1c40f"></i> Medio</div>
-            <div><i style="background:#27ae60"></i> Basso</div>
+            <div class="legend-section">
+                <b>INTENSITÀ RISCHIO (Colori Fiamma)</b>
+                <div><i style="background:#c0392b"></i> Molto Alto</div>
+                <div><i style="background:#e67e22"></i> Alto</div>
+                <div><i style="background:#f1c40f"></i> Medio</div>
+                <div><i style="background:#27ae60"></i> Basso</div>
+                <div><i style="background:#999; border:1px solid #666;"></i> In Analisi</div>
+            </div>
         `;
         return div;
     };
@@ -144,46 +151,67 @@
                 nReal++;
                 const pId = `p-${i}`;
                 const tId = `type-${i}`;
+                const mId = `marker-${i}`;
                 
-                const marker = L.marker([lat, lon], {
-                    icon: L.divIcon({
-                        html: `<div class="fire-pulse"></div><i class="fas fa-fire" style="color:#ff4500; font-size:20px; position:relative; z-index:10;"></i>`,
-                        className: 'fire-marker', iconSize:[20,20], iconAnchor:[10,10]
-                    })
-                }).addTo(nasaLayer);
+                // Icona Fuoco Iniziale (Grigia - In Analisi)
+                const markerIcon = L.divIcon({
+                    html: `<div id="pulse-${i}" class="fire-pulse"></div><i id="fire-${i}" class="fas fa-fire" style="color:#999; font-size:20px; position:relative; z-index:10; text-shadow: 0 0 3px #000;"></i>`,
+                    className: 'fire-marker', iconSize:[20,20], iconAnchor:[10,10]
+                });
 
+                const marker = L.marker([lat, lon], { icon: markerIcon }).addTo(nasaLayer);
+
+                // Popup con segnaposto per Tipo e Meteo
                 marker.bindPopup(`
-                    <div style="font-size:11px; width:190px;">
-                        <b>SITO:</b> <span id="${tId}">Verifica in corso...</span><br>
+                    <div style="font-size:11px; width:195px; color:#333;">
+                        <b>SITO:</b> <span id="${tId}" style="font-weight:bold; color:#000;">In analisi...</span><br>
                         <b>AREA:</b> ~14 ha<br>
                         <b>COORDS:</b> ${toDMS(lat,'N','S')} ${toDMS(lon,'E','W')}
                         <div id="${pId}" class="weather-widget">
-                            <i class="fas fa-sync fa-spin"></i> Analisi rischio in corso...
+                            <i class="fas fa-sync fa-spin"></i> Analisi parametri reali...
                         </div>
                     </div>`);
 
-                marker.on('popupopen', async () => {
-                    try {
-                        const wRes = await fetch(`https://corsproxy.io/?` + encodeURIComponent(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${weatherKey}&units=metric&lang=it`));
-                        const w = await wRes.json();
+                // Logica Dinamica: Recupera meteo, calcola rischio e COLORA la fiamma
+                fetch(`https://corsproxy.io/?` + encodeURIComponent(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${weatherKey}&units=metric&lang=it`))
+                .then(r => r.json())
+                .then(w => {
+                    if(w.main) {
                         const risk = getRiskLevel(w.main.temp, w.main.humidity);
                         
-                        // Logica Bosco o Altro: Se rischio alto e temp elevata, classifichiamo come Bosco
-                        const typeEl = document.getElementById(tId);
-                        if (risk.txt === "MOLTO ALTO" || risk.txt === "ALTO") {
-                            typeEl.innerText = "Bosco / Forestale";
-                        } else {
-                            typeEl.innerText = "Vegetazione / Sterpaglie";
+                        // 1. Aggiorna Colore Fiamma sulla mappa (Dati Reali)
+                        const fireIconEl = document.getElementById(`fire-${i}`);
+                        const pulseEl = document.getElementById(`pulse-${i}`);
+                        if(fireIconEl && pulseEl) {
+                            fireIconEl.style.color = risk.col; // Colore icona fiammella
+                            pulseEl.style.background = `${risk.col}66`; // Colore radar semitrasparente (aggiungo '66' per opacità)
+                            pulseEl.style.borderColor = risk.col; // Colore bordo radar
                         }
 
-                        document.getElementById(pId).innerHTML = `
-                            <div style="margin-bottom:4px;"><i class="fas fa-thermometer-half"></i> ${w.main.temp.toFixed(1)}°C | <i class="fas fa-tint"></i> ${w.main.humidity}%</div>
-                            <div style="font-size:10px; color:#666; font-weight:bold;">RISCHIO INCENDIO (FWI):</div>
-                            <div class="risk-badge" style="background:${risk.col}">${risk.txt}</div>`;
-                    } catch (e) { 
-                        document.getElementById(pId).innerHTML = "Meteo non disponibile";
-                        document.getElementById(tId).innerText = "Vegetazione";
+                        // 2. Aggiorna Tipo (Bosco o Sterpaglie) basato sul rischio
+                        const typeEl = document.getElementById(tId);
+                        if (typeEl) {
+                            if (risk.txt === "MOLTO ALTO" || risk.txt === "ALTO") {
+                                typeEl.innerText = "Bosco / Forestale (Rischio Elevato)";
+                            } else {
+                                typeEl.innerText = "Vegetazione / Sterpaglie";
+                            }
+                        }
+
+                        // 3. Aggiorna Parametri Meteo e Badge nel popup
+                        marker.on('popupopen', () => {
+                            const widgetEl = document.getElementById(pId);
+                            if(widgetEl) {
+                                widgetEl.innerHTML = `
+                                    <div style="margin-bottom:4px; font-weight:bold;"><i class="fas fa-thermometer-half" style="color:#e74c3c;"></i> ${w.main.temp.toFixed(1)}°C | <i class="fas fa-tint" style="color:#3498db;"></i> ${w.main.humidity}% UR</div>
+                                    <div style="font-size:10px; color:#666; font-weight:bold;">RISCHIO INCENDIO (FWI) REALE:</div>
+                                    <div class="risk-badge" style="background:${risk.col}">${risk.txt}</div>`;
+                            }
+                        });
                     }
+                }).catch(e => {
+                    if(document.getElementById(pId)) document.getElementById(pId).innerHTML = "Dati meteo non disponibili";
+                    if(document.getElementById(tId)) document.getElementById(tId).innerText = "Vegetazione";
                 });
             }
             document.getElementById('count').innerText = `${nReal} Alert Operativi`;
