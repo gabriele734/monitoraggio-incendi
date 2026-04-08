@@ -107,10 +107,10 @@
 
     // FUNZIONE MENU NOTIZIE - Link Aggiornati
     window.openNewsMenu = () => {
-        const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco (Dal Territorio)\n2 - Campagna 'Io Non Rischio' (Protezione Civile)\n3 - Twitter Emergenza VVF", "1");
+        const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco (Dal Territorio)\n2 - Campagna 'Io Non Rischio' (Protezione Civile)\n3 - Geoportale Nazionale (AIB)", "1");
         if (scelta === "1") window.open('https://www.vigilfuoco.it/media/notizie/dal-territorio', '_blank');
         else if (scelta === "2") window.open('https://www.iononrischio.gov.it/it/preparati/incendi-boschivi/', '_blank');
-        else if (scelta === "3") window.open('https://twitter.com/emergenzavvf', '_blank');
+        else if (scelta === "3") window.open('http://www.pcn.minambiente.it/viewer/index.php?services=AIB_Incendi_PNZ', '_blank');
     };
 
     // FUNZIONE LOGIN (Globalizzata)
