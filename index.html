@@ -54,7 +54,7 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
 
-    // BLACKLIST RIMOZIONE TOTALE (Tutti i siti industriali e vulcani rimossi)
+    // BLACKLIST AGGIORNATA (Protezione contro falsi positivi)
     const blacklist = [
         {lat: 45.10, lon: 7.51,  name: "Ferriere Nord Rivoli"},
         {lat: 45.45, lon: 10.49, name: "Feralpi Siderurgica Lonato"},
@@ -79,7 +79,7 @@
         {lat: 43.58, lon: 10.33, name: "Livorno"}
     ];
 
-    // CARICAMENTO AUTOMATICO ALL'AVVIO
+    // CARICAMENTO AUTOMATICO
     window.onload = () => {
         loadNasaData();
         loadCloudData();
@@ -89,7 +89,6 @@
     window.checkAuth = function() {
         if (document.getElementById('operator-code').value === "GABRIELE_STAFF") {
             document.getElementById('login-section').innerHTML = "<b style='color:#2ecc71'>⭐ OPERATIVO</b>";
-            // L'accesso abilita ora la possibilità di cliccare sulla mappa per segnalare
         } else { alert("Codice Errato"); }
     };
 
@@ -125,14 +124,12 @@
 
                     nReal++;
                     let iconHtml = `<i class="fas fa-fire" style="color:${temp > 60 ? '#d73027' : '#fdae61'}; font-size:16px;"></i>`;
-                    let popupContent = `<b>🔥 INCENDIO BOSCHIVO</b><br>Temperatura rilevata: ${temp}°C`;
-
                     L.marker([lat, lon], { icon: L.divIcon({ html: iconHtml, className: 'f-icon' }) })
-                     .addTo(nasaLayer).bindPopup(popupContent);
+                     .addTo(nasaLayer).bindPopup(`<b>🔥 INCENDIO BOSCHIVO</b><br>Temperatura: ${temp}°C`);
                 }
             }
             document.getElementById('count').innerText = `${nReal} Incendi in Italia`;
-        } catch (e) { console.error("Errore caricamento NASA"); }
+        } catch (e) { console.error("Errore NASA"); }
     }
 
     function loadCloudData() {
@@ -160,9 +157,8 @@
     }
 
     map.on('click', async (e) => {
-        // Il click funziona solo se l'utente è loggato come staff
         if (document.getElementById('login-section').innerHTML.includes("OPERATIVO")) {
-            const desc = prompt("Descrizione evento:");
+            const desc = prompt("Descrizione evento (es. Niardo fiamme all'alba):");
             if (desc) await addDoc(collection(db, "segnalazioni"), { lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, timestamp: new Date() });
         }
     });
