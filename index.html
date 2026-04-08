@@ -105,10 +105,10 @@
         {lat:38.79, lon:15.21}  // Stromboli
     ];
 
-    // FUNZIONE MENU NOTIZIE
+    // FUNZIONE MENU NOTIZIE - Link VVF aggiornato
     window.openNewsMenu = () => {
-        const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco\n2 - Meteo Incendi (EFFIS)\n3 - Twitter Emergenza VVF", "1");
-        if (scelta === "1") window.open('https://www.vigilfuoco.tv/notizie', '_blank');
+        const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco (Dal Territorio)\n2 - Meteo Incendi (EFFIS)\n3 - Twitter Emergenza VVF", "1");
+        if (scelta === "1") window.open('https://www.vigilfuoco.it/media/notizie/dal-territorio', '_blank');
         else if (scelta === "2") window.open('https://www.effis.jrc.ec.europa.eu/', '_blank');
         else if (scelta === "3") window.open('https://twitter.com/emergenzavvf', '_blank');
     };
@@ -176,7 +176,6 @@
                     }).addTo(nasaLayer);
                 }
             }
-            // HEADER AGGIORNATO CON "ALERT OPERATIVI"
             document.getElementById('count').innerText = `${nReal} Alert Operativi`;
         } catch (e) { console.error("Errore NASA"); }
     }
