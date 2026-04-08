@@ -82,6 +82,16 @@
         {lat:38.79, lon:15.21}
     ];
 
+    // --- FUNZIONE CONVERSIONE GRADI/PRIMI/SECONDI ---
+    function toDMS(deg, pos, neg) {
+        const absolute = Math.abs(deg);
+        const d = Math.floor(absolute);
+        const m = Math.floor((absolute - d) * 60);
+        const s = ((absolute - d - m / 60) * 3600).toFixed(1);
+        const direction = deg >= 0 ? pos : neg;
+        return `${d}° ${m}' ${s}" ${direction}`;
+    }
+
     window.openNewsMenu = () => {
         const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco (Dal Territorio)\n2 - Campagna 'Io Non Rischio' (Protezione Civile)\n3 - Geoportale Nazionale (AIB)", "1");
         if (scelta === "1") window.open('https://www.vigilfuoco.it/media/notizie/dal-territorio', '_blank');
@@ -124,12 +134,11 @@
     };
     intensityLegend.addTo(map);
 
-    // FUNZIONE PER DETERMINARE IL COLORE IN BASE ALLA TEMPERATURA (Bright_t31)
     function getIntensityColor(temp) {
-        if (temp > 350) return '#800000'; // Critico
-        if (temp > 330) return '#ff6666'; // Elevato
-        if (temp > 310) return '#ffcc00'; // Medio
-        return '#ffff00'; // Moderato
+        if (temp > 350) return '#800000'; 
+        if (temp > 330) return '#ff6666'; 
+        if (temp > 310) return '#ffcc00'; 
+        return '#ffff00'; 
     }
 
     async function loadNasaData() {
@@ -146,7 +155,7 @@
                 
                 const lat = parseFloat(c[0]);
                 const lon = parseFloat(c[1]);
-                const temp = parseFloat(c[2]); // Brightness Temperature
+                const temp = parseFloat(c[2]);
 
                 let inArea = false;
                 if (lat > 44.2 && lat < 47.1 && lon > 6.6 && lon < 13.5) inArea = true; 
@@ -162,19 +171,19 @@
                     if(skip) continue;
 
                     nReal++;
-                    
                     const color = getIntensityColor(temp);
+                    const dmsCoords = `<b>COORDINATE DMS:</b><br>${toDMS(lat, 'N', 'S')}<br>${toDMS(lon, 'E', 'W')}`;
 
                     L.circle([lat, lon], {
                         color: color,
                         fillColor: color,
                         fillOpacity: 0.4,
                         radius: 700 
-                    }).addTo(nasaLayer);
+                    }).addTo(nasaLayer).bindPopup(dmsCoords);
 
                     L.marker([lat, lon], { 
                         icon: L.divIcon({ html: `<i class="fas fa-fire" style="color:${color}; font-size:16px; text-shadow: 0 0 3px #000;"></i>`, className: 'f-icon' }) 
-                    }).addTo(nasaLayer);
+                    }).addTo(nasaLayer).bindPopup(dmsCoords);
                 }
             }
             document.getElementById('count').innerText = `${nReal} Alert Operativi`;
@@ -187,7 +196,10 @@
             cloudLayer.clearLayers();
             snap.forEach(doc => {
                 const d = doc.data();
-                L.marker([d.lat, d.lon], { icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c-icon' }) }).addTo(cloudLayer);
+                const dmsSegnalazione = `<b>SEGNALAZIONE DMS:</b><br>${toDMS(d.lat, 'N', 'S')}<br>${toDMS(d.lon, 'E', 'W')}`;
+                L.marker([d.lat, d.lon], { 
+                    icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c-icon' }) 
+                }).addTo(cloudLayer).bindPopup(dmsSegnalazione);
             });
         });
         setInterval(loadNasaData, 600000); 
