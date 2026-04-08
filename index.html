@@ -17,13 +17,6 @@
         #stat { font-weight: bold; font-size: 1.1em; color: #fff; line-height: 1.2; }
         .sub-stat { font-size: 0.7em; color: #ffa500; display: block; }
 
-        .legend { 
-            background: rgba(255, 255, 255, 0.9); 
-            padding: 10px; border-radius: 8px; 
-            box-shadow: 0 0 15px rgba(0,0,0,0.5); 
-            line-height: 24px; color: #333; font-size: 13px; font-weight: bold;
-        }
-
         .ruler-btn {
             background: white; width: 34px; height: 34px; line-height: 34px;
             text-align: center; cursor: pointer; box-shadow: 0 1px 5px rgba(0,0,0,0.4);
@@ -32,17 +25,9 @@
         .ruler-btn.active { background: #e74c3c; color: white; }
         .distance-label { background: rgba(0,0,0,0.8); color: white; padding: 2px 6px; border-radius: 4px; font-size: 12px; z-index: 1000; }
         
-        /* Stile freccia vento */
-        .wind-icon-container {
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        /* Widget Meteo Popup */
-        .weather-widget { border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; }
-        .weather-item { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+        .wind-icon-container { text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .weather-widget { border-top: 1px solid #ddd; margin-top: 8px; padding-top: 8px; min-width: 150px; }
+        .weather-item { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -73,8 +58,6 @@
         apiKey: "AIzaSyClmNoNbNpxk5IjB9LsrQvWqPI1YodxY9E",
         authDomain: "monitoraggioincendi-41f5f.firebaseapp.com",
         projectId: "monitoraggioincendi-41f5f",
-        storageBucket: "monitoraggioincendi-41f5f.firebasestorage.app",
-        messagingSenderId: "63942195354",
         appId: "1:63942195354:web:cc5bb978858676c6748723"
     };
 
@@ -85,19 +68,18 @@
     const topografica = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { maxZoom: 17 });
 
     const map = L.map('map', { center: [42.0, 12.5], zoom: 6, layers: [satellite] });
-
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
     const windLayer = L.layerGroup().addTo(map);
+
+    const weatherKey = "b1b15e88fa7972254124651173e936f6";
 
     L.control.layers({ "🛰️ Satellitare": satellite, "⛰️ Topografica": topografica }, 
                      { "🔥 Incendi NASA": nasaLayer, "📸 Alert Cloud": cloudLayer, "🌬️ Direzione Vento": windLayer }, 
                      { collapsed: false }).addTo(map);
 
     // --- RIGHELLO ---
-    let rulerActive = false;
-    let rulerPoints = [];
-    let rulerLayers = L.layerGroup().addTo(map);
+    let rulerActive = false, rulerPoints = [], rulerLayers = L.layerGroup().addTo(map);
     const RulerControl = L.Control.extend({
         options: { position: 'topleft' },
         onAdd: function() {
@@ -107,7 +89,6 @@
                 L.DomEvent.stopPropagation(e);
                 rulerActive = !rulerActive;
                 btn.classList.toggle('active');
-                map.getContainer().style.cursor = rulerActive ? 'crosshair' : '';
                 if(!rulerActive) { rulerLayers.clearLayers(); rulerPoints = []; }
             });
             return btn;
@@ -128,37 +109,27 @@
         }
     });
 
-    // --- FILTRI ---
     function isOutsideItaly(lat, lon) {
         if (lat < 35.4 || lat > 47.1 || lon < 6.6 || lon > 18.6) return true;
         if (lat < 37.4 && lon < 12.0) return true; 
-        if (lat < 46.0 && lon > 13.7) {
-            if (lat < 42.0 && lon > 15.1) return true;
-            if (lat >= 42.0 && lon > 13.7) return true;
-        }
-        if (lat > 43.5 && lon < 7.0) return true;
-        return false;
+        if (lat < 46.0 && lon > 13.7) return (lat < 42.0 && lon > 15.1) || (lat >= 42.0 && lon > 13.7);
+        return (lat > 43.5 && lon < 7.0);
     }
 
-    const blacklist = [
-        {lat:41.13, lon:15.45}, {lat:42.04, lon:14.72}, {lat:44.78, lon:10.73}, 
-        {lat:37.20, lon:15.17}, {lat:45.47, lon:10.22}, {lat:40.48, lon:17.22}
-    ];
+    const blacklist = [{lat:41.13, lon:15.45}, {lat:42.04, lon:14.72}, {lat:44.78, lon:10.73}, {lat:37.20, lon:15.17}, {lat:40.48, lon:17.22}];
 
     function toDMS(deg, pos, neg) {
         const abs = Math.abs(deg);
-        const d = Math.floor(abs), m = Math.floor((abs - d) * 60), s = ((abs - d - m / 60) * 3600).toFixed(1);
+        const d = Math.floor(abs), m = Math.floor((abs-d)*60), s = ((abs-d-m/60)*3600).toFixed(1);
         return `${d}°${m}'${s}"${deg >= 0 ? pos : neg}`;
     }
 
-    // --- CARICAMENTO DATI ---
     async function loadNasaData() {
         try {
-            const res = await fetch(`https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/6c7f29542d837e182b0bf7292cb52b99/VIIRS_SNPP_NRT/world/1`);
+            const res = await fetch(`https://corsproxy.io/?` + encodeURIComponent(`https://firms.modaps.eosdis.nasa.gov/api/area/csv/6c7f29542d837e182b0bf7292cb52b99/VIIRS_SNPP_NRT/world/1`));
             const csv = await res.text();
             const lines = csv.split('\n');
-            let nReal = 0;
-            let totalHa = 0;
+            let nReal = 0, totalHa = 0;
 
             nasaLayer.clearLayers();
             windLayer.clearLayers();
@@ -167,87 +138,59 @@
                 const c = lines[i].split(',');
                 if (c.length < 3) continue;
                 const lat = parseFloat(c[0]), lon = parseFloat(c[1]);
-
                 if (isOutsideItaly(lat, lon)) continue;
+                if (blacklist.some(s => Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.08)) continue;
 
-                let skip = false;
-                blacklist.forEach(s => { if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.08) skip=true; });
-                if(skip) continue;
-
-                nReal++;
-                totalHa += 14.06;
-                
-                // --- LOGICA POPUP CON METEO LOCALE ---
-                const popupId = `popup-${i}`;
-                const popupContent = L.DomUtil.create('div', '');
-                popupContent.innerHTML = `
-                    <div style="font-size:11px;">
-                        <b>SITO:</b> Incendio Attivo<br>
-                        <b>AREA:</b> ~14 ha<br>
-                        <b>COORDS:</b> ${toDMS(lat,'N','S')} ${toDMS(lon,'E','W')}
-                        <div id="${popupId}" class="weather-widget">
-                            <i class="fas fa-spinner fa-spin"></i> Caricamento meteo...
-                        </div>
-                    </div>`;
-
-                L.circle([lat, lon], { color: 'red', weight: 1, fillColor: '#f03', fillOpacity: 0.3, radius: 375 }).addTo(nasaLayer);
+                nReal++; totalHa += 14.06;
+                const pId = `p-${i}`;
                 
                 const marker = L.marker([lat, lon], { 
-                    icon: L.divIcon({ 
-                        html: `<i class="fas fa-fire" style="color:#ff4500; font-size:20px; text-shadow: 0 0 5px #000;"></i>`, 
-                        className: 'fire-icon', iconSize: [20, 20], iconAnchor: [10, 10]
-                    }) 
-                }).addTo(nasaLayer).bindPopup(popupContent);
+                    icon: L.divIcon({ html: `<i class="fas fa-fire" style="color:#ff4500; font-size:20px; text-shadow: 0 0 5px #000;"></i>`, className: 'fire-icon', iconSize:[20,20], iconAnchor:[10,10]}) 
+                }).addTo(nasaLayer);
 
-                // Carica meteo solo all'apertura del popup per risparmiare risorse
-                marker.on('popupopen', () => {
-                    fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=b1b15e88fa7972254124651173e936f6&units=metric&lang=it`)
-                    .then(r => r.json())
-                    .then(w => {
-                        const widget = document.getElementById(popupId);
-                        if(widget && w.main) {
-                            widget.innerHTML = `
-                                <div class="weather-item"><i class="fas fa-thermometer-half" style="color:#e74c3c"></i> <b>Temp:</b> ${w.main.temp.toFixed(1)}°C</div>
-                                <div class="weather-item"><i class="fas fa-tint" style="color:#3498db"></i> <b>Umidità:</b> ${w.main.humidity}%</div>
-                                <div class="weather-item"><i class="fas fa-cloud" style="color:#95a5a6"></i> <b>Stato:</b> ${w.weather[0].description}</div>
-                            `;
+                marker.bindPopup(`
+                    <div style="font-size:11px;">
+                        <b>SITO:</b> Incendio Attivo<br><b>COORDS:</b> ${toDMS(lat,'N','S')} ${toDMS(lon,'E','W')}
+                        <div id="${pId}" class="weather-widget"><i class="fas fa-sync fa-spin"></i> Caricamento meteo...</div>
+                    </div>`);
+
+                marker.on('popupopen', async () => {
+                    try {
+                        const wRes = await fetch(`https://corsproxy.io/?` + encodeURIComponent(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${weatherKey}&units=metric&lang=it`));
+                        const w = await wRes.json();
+                        const el = document.getElementById(pId);
+                        if(el && w.main) {
+                            el.innerHTML = `
+                                <div class="weather-item"><i class="fas fa-thermometer-half" style="color:#e74c3c"></i> ${w.main.temp.toFixed(1)}°C</div>
+                                <div class="weather-item"><i class="fas fa-tint" style="color:#3498db"></i> ${w.main.humidity}% UR</div>
+                                <div class="weather-item"><i class="fas fa-wind" style="color:#2ecc71"></i> ${ (w.wind.speed * 3.6).toFixed(0) } km/h</div>`;
                         }
-                    }).catch(() => {
-                        document.getElementById(popupId).innerHTML = "Meteo non disponibile";
-                    });
+                    } catch (err) { document.getElementById(pId).innerHTML = "Meteo non disponibile"; }
                 });
 
-                // Recupero Vento per Layer separato
-                fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=b1b15e88fa7972254124651173e936f6&units=metric`)
-                .then(r => r.json())
-                .then(w => {
+                // Caricamento layer vento silente
+                fetch(`https://corsproxy.io/?` + encodeURIComponent(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${weatherKey}&units=metric`))
+                .then(r => r.json()).then(w => {
                     if(w.wind) {
-                        const speed = (w.wind.speed * 3.6).toFixed(0);
                         L.marker([lat, lon], {
                             icon: L.divIcon({
                                 className: 'wind-icon-container',
-                                html: `<div style="transform: rotate(${w.wind.deg}deg); color: #00f2ff; font-size: 24px; filter: drop-shadow(0 0 2px black);">
-                                          <i class="fas fa-location-arrow"></i>
-                                       </div>
-                                       <div style="color:white; font-size:10px; font-weight:bold; text-shadow: 1px 1px 2px black;">${speed} km/h</div>`,
-                                iconSize: [40, 40],
-                                iconAnchor: [20, 20]
-                            }),
-                            interactive: false
+                                html: `<div style="transform: rotate(${w.wind.deg}deg); color: #00f2ff; font-size: 20px; filter: drop-shadow(0 0 2px black);"><i class="fas fa-location-arrow"></i></div>`,
+                                iconSize: [30, 30], iconAnchor: [15, 15]
+                            }), interactive: false
                         }).addTo(windLayer);
                     }
-                }).catch(err => console.log("Errore Vento"));
+                });
             }
             document.getElementById('count').innerText = `${nReal} Alert Operativi`;
-            document.getElementById('area-est').innerText = `Superficie colpita stimata: ${totalHa.toLocaleString('it-IT')} Ettari (ha)`;
-        } catch (e) { console.error("Errore NASA"); }
+            document.getElementById('area-est').innerText = `Superficie colpita stimata: ${totalHa.toLocaleString('it-IT')} ha`;
+        } catch (e) { console.error("Errore Dati"); }
     }
 
     window.openNewsMenu = () => {
         const s = prompt("1-VVF | 2-Prot. Civile | 3-AIB", "1");
-        if (s === "1") window.open('https://www.vigilfuoco.it/media/notizie/dal-territorio', '_blank');
-        if (s === "2") window.open('https://www.iononrischio.gov.it/it/preparati/incendi-boschivi/', '_blank');
-        if (s === "3") window.open('http://www.pcn.minambiente.it/viewer/index.php?services=AIB_Incendi_PNZ', '_blank');
+        const urls = {"1":"https://www.vigilfuoco.it/media/notizie/dal-territorio", "2":"https://www.iononrischio.gov.it", "3":"http://www.pcn.minambiente.it"};
+        if(urls[s]) window.open(urls[s], '_blank');
     };
 
     window.checkAuth = () => {
