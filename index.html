@@ -53,9 +53,17 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
 
-    const volcanoList = [
+    // BLACKLIST AGGIORNATA (Vulcani + Raffinerie per evitare falsi positivi)
+    const blacklist = [
         {lat: 37.75, lon: 14.99, name: "Etna"},
-        {lat: 38.79, lon: 15.21, name: "Stromboli"}
+        {lat: 38.79, lon: 15.21, name: "Stromboli"},
+        {lat: 37.13, lon: 15.18, name: "Polo Industriale Priolo/Augusta"},
+        {lat: 38.20, lon: 15.24, name: "Raffineria Milazzo"},
+        {lat: 39.09, lon: 9.01,  name: "Raffineria Sarroch"},
+        {lat: 40.48, lon: 17.22, name: "Taranto (Ex Ilva)"},
+        {lat: 45.45, lon: 12.23, name: "Porto Marghera"},
+        {lat: 44.91, lon: 8.82,  name: "Sannazzaro Raffineria"},
+        {lat: 43.58, lon: 10.33, name: "Livorno Raffineria"}
     ];
 
     window.checkAuth = function() {
@@ -82,32 +90,32 @@
                 const lon = parseFloat(c[1]);
                 const temp = (parseFloat(c[2]) - 273.15).toFixed(0);
 
-                // --- FILTRO GEOGRAFICO SUPER RIGIDO ---
-                // Alzato a 37.0 per tagliare fuori Tunisia/Algeria cerchiate nell'immagine
+                // --- FILTRO GEOGRAFICO (Taglio Africa, Svizzera, Corsica, Balcani) ---
                 let inArea = (lat > 37.0 && lat < 47.1) && (lon > 6.6 && lon < 18.5);
-                
-                if (lat > 46.55) inArea = false; // Taglio Nord
-                if (lon < 9.7 && lat > 41.3 && lat < 43.1) inArea = false; // Taglio Corsica
-                if (lon > 13.6 && lat > 42.0) inArea = false; // Taglio Balcani
+                if (lat > 46.55) inArea = false;
+                if (lon < 9.7 && lat > 41.3 && lat < 43.1) inArea = false;
+                if (lon > 13.6 && lat > 42.0) inArea = false;
 
                 if (inArea) {
-                    let isVolcano = false;
-                    let vName = "";
+                    let isBlacklisted = false;
+                    let siteName = "";
 
-                    volcanoList.forEach(v => {
-                        const d = Math.sqrt(Math.pow(lat - v.lat, 2) + Math.pow(lon - v.lon, 2));
-                        if (d < 0.06) {
-                            isVolcano = true;
-                            vName = v.name;
+                    blacklist.forEach(site => {
+                        const d = Math.sqrt(Math.pow(lat - site.lat, 2) + Math.pow(lon - site.lon, 2));
+                        if (d < 0.07) { // Raggio di tolleranza per aree industriali/vulcani
+                            isBlacklisted = true;
+                            siteName = site.name;
                         }
                     });
 
                     let iconHtml, popupContent;
 
-                    if (isVolcano) {
+                    if (isBlacklisted) {
+                        // Icona Vulcano per tutto il calore noto non boschivo
                         iconHtml = `<i class="fas fa-volcano" style="color:#e67e22; font-size:18px;"></i>`;
-                        popupContent = `<b>🌋 ATTIVITÀ VULCANICA: ${vName.toUpperCase()}</b><br>Non è un incendio.<br><i>Temp: ${temp}°C</i>`;
+                        popupContent = `<b>⚠️ CALORE NOTO: ${siteName.toUpperCase()}</b><br>Attività industriale o vulcanica monitorata.<br><i>Temp: ${temp}°C</i>`;
                     } else {
+                        // Incendio boschivo reale
                         iconHtml = `<i class="fas fa-fire" style="color:${temp > 60 ? '#d73027' : '#fdae61'}; font-size:16px;"></i>`;
                         popupContent = `<b>🔥 INCENDIO BOSCHIVO</b><br>Temperatura: ${temp}°C`;
                         nReal++;
@@ -118,7 +126,7 @@
                 }
             }
             document.getElementById('count').innerText = `${nReal} Incendi in Italia`;
-        } catch (e) { console.error("Errore fetch"); }
+        } catch (e) { console.error("Errore caricamento dati NASA"); }
     }
 
     function loadCloudData() {
@@ -138,8 +146,8 @@
         legend.onAdd = function() {
             const div = L.DomUtil.create('div', 'legend');
             div.innerHTML = '<b>LEGENDA</b><br>' +
-                            '<i class="fas fa-fire" style="color:#d73027"></i> Incendio Boschivo<br>' +
-                            '<i class="fas fa-volcano" style="color:#e67e22"></i> Attività Vulcanica<br>' +
+                            '<i class="fas fa-fire" style="color:#d73027"></i> Incendio Boschivo (Pericolo)<br>' +
+                            '<i class="fas fa-volcano" style="color:#e67e22"></i> Calore Noto (Industria/Vulcano)<br>' +
                             '<i class="fas fa-camera" style="color:purple"></i> Segnalazione Staff';
             return div;
         };
