@@ -89,6 +89,22 @@
 
     const map = L.map('map', { center: [42.0, 12.5], zoom: 6, layers: [satellite] });
 
+    // --- LOGICA FILTRI GEOGRAFICI ---
+    function isOutsideItaly(lat, lon) {
+        const exclusions = [
+            { s: 30.0, n: 37.2, w: 7.0, e: 12.0 }, // Tunisia e Nord Africa
+            { s: 35.0, n: 36.5, w: 13.0, e: 15.0 }, // Piattaforme a Sud di Malta
+            { s: 43.0, n: 45.0, w: 3.0, e: 6.5 },   // Francia (zona Marsiglia/Fos)
+            { s: 42.0, n: 44.0, w: 18.0, e: 20.0 }  // Balcani costa Est
+        ];
+        return exclusions.some(r => lat >= r.s && lat <= r.n && lon >= r.w && lon <= r.e);
+    }
+
+    const blacklist = [
+        {lat:41.13, lon:15.45}, {lat:42.04, lon:14.72}, {lat:44.78, lon:10.73}, 
+        {lat:37.20, lon:15.17}, {lat:45.47, lon:10.22}, {lat:44.91, lon:8.21}
+    ];
+
     // --- RIGHELLO ---
     let rulerActive = false;
     let rulerPoints = [];
@@ -125,32 +141,12 @@
         }
     });
 
-    // --- RISCHIO STORICO ---
-    const riskLayer = L.layerGroup();
-    const riskZones = [
-        {lat: 40.1, lon: 9.1, r: 80000}, {lat: 37.5, lon: 14.2, r: 90000},
-        {lat: 39.0, lon: 16.5, r: 60000}, {lat: 41.2, lon: 15.5, r: 50000},
-        {lat: 42.3, lon: 13.5, r: 40000}, {lat: 43.5, lon: 11.0, r: 35000},
-        {lat: 40.5, lon: 17.5, r: 45000}
-    ];
-    riskZones.forEach(z => L.circle([z.lat, z.lon], { radius: z.r, color: 'orange', fillColor: '#f03', fillOpacity: 0.15, weight: 1, interactive: false }).addTo(riskLayer));
-
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
 
     const baseMaps = { "🛰️ Vista Satellitare": satellite, "⛰️ Mappa Topografica": topografica };
-    const overlayMaps = { "⚠️ Rischio Storico": riskLayer, "🔥 Incendi NASA": nasaLayer, "📸 Alert Cloud": cloudLayer };
+    const overlayMaps = { "🔥 Incendi NASA": nasaLayer, "📸 Alert Cloud": cloudLayer };
     L.control.layers(baseMaps, overlayMaps, { collapsed: false, position: 'topright' }).addTo(map);
-    
-    // --- FILTRI E LOGICA NASA ---
-    const blacklist = [
-        {lat:41.13, lon:15.45}, {lat:42.04, lon:14.72}, {lat:44.78, lon:10.73}, 
-        {lat:37.20, lon:15.17}, {lat:45.47, lon:10.22},
-        {lat:36.83, lon:10.31}, // Tunisia
-        {lat:35.81, lon:10.63}, // Coste Sud
-        {lat:43.45, lon:4.92},  // Francia
-        {lat:44.91, lon:8.21}   // Pianura Padana
-    ];
 
     function toDMS(deg, pos, neg) {
         const absolute = Math.abs(deg);
@@ -173,40 +169,44 @@
             for (let i = 1; i < lines.length; i++) {
                 const c = lines[i].split(',');
                 if (c.length < 3) continue;
-                const lat = parseFloat(c[0]), lon = parseFloat(c[1]);
+                
+                const lat = parseFloat(c[0]);
+                const lon = parseFloat(c[1]);
 
-                // Limiti geografici IT: Lat 36.5 a 47.1 | Lon 6.6 a 18.6
-                if ((lat > 36.5 && lat < 47.1) && (lon > 6.6 && lon < 18.6)) {
-                    
-                    let skip = false;
-                    blacklist.forEach(s => { 
-                        if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.08) skip=true; 
-                    });
-                    
-                    if(skip) continue;
-                    
-                    nReal++;
-                    totalAreaHectares += AREA_PER_PIXEL;
-                    
-                    const info = `<div style="font-size:11px;"><b>SITO:</b> Incendio Attivo<br><b>AREA STIMATA:</b> ~14 ha<br><b>COORDS:</b> ${toDMS(lat,'N','S')} ${toDMS(lon,'E','W')}</div>`;
-                    
-                    L.circle([lat, lon], { color: 'red', weight: 1, fillColor: '#f03', fillOpacity: 0.3, radius: 375 }).addTo(nasaLayer);
-                    L.marker([lat, lon], { 
-                        icon: L.divIcon({ 
-                            html: `<i class="fas fa-fire" style="color:#ff4500; font-size:20px; text-shadow: 0 0 5px #000;"></i>`, 
-                            className: 'fire-icon',
-                            iconSize: [20, 20],
-                            iconAnchor: [10, 10]
-                        }) 
-                    }).addTo(nasaLayer).bindPopup(info);
-                }
+                // 1. Filtro geografico stretto
+                if (lat < 36.6 || lat > 47.1 || lon < 6.6 || lon > 18.6) continue;
+
+                // 2. Filtro rettangoli di esclusione (Tunisia, mare aperto, etc.)
+                if (isOutsideItaly(lat, lon)) continue;
+
+                // 3. Filtro Blacklist industriale (punti fissi)
+                let skipBlacklist = false;
+                blacklist.forEach(s => { 
+                    if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.09) skipBlacklist = true; 
+                });
+                if(skipBlacklist) continue;
+
+                // Se passa tutti i filtri, lo aggiungiamo
+                nReal++;
+                totalAreaHectares += AREA_PER_PIXEL;
+                
+                const info = `<div style="font-size:11px;"><b>SITO:</b> Incendio Attivo<br><b>AREA STIMATA:</b> ~14 ha<br><b>COORDS:</b> ${toDMS(lat,'N','S')} ${toDMS(lon,'E','W')}</div>`;
+                
+                L.circle([lat, lon], { color: 'red', weight: 1, fillColor: '#f03', fillOpacity: 0.3, radius: 375 }).addTo(nasaLayer);
+                L.marker([lat, lon], { 
+                    icon: L.divIcon({ 
+                        html: `<i class="fas fa-fire" style="color:#ff4500; font-size:20px; text-shadow: 0 0 5px #000;"></i>`, 
+                        className: 'fire-icon',
+                        iconSize: [20, 20],
+                        iconAnchor: [10, 10]
+                    }) 
+                }).addTo(nasaLayer).bindPopup(info);
             }
             document.getElementById('count').innerText = `${nReal} Alert Operativi`;
             document.getElementById('area-est').innerText = `Superficie colpita stimata: ${totalAreaHectares.toLocaleString('it-IT')} Ettari (ha)`;
         } catch (e) { console.error("Errore NASA"); }
     }
 
-    // --- UTILS ---
     window.openNewsMenu = () => {
         const scelta = prompt("1-VVF | 2-Prot. Civile | 3-AIB", "1");
         if (scelta === "1") window.open('https://www.vigilfuoco.it/media/notizie/dal-territorio', '_blank');
