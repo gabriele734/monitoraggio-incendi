@@ -67,7 +67,7 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
     
-    // --- BLACKLIST CON COMMENTI (RIPRISTINATA) ---
+    // --- BLACKLIST CON COMMENTI ---
     const blacklist = [
         {lat:41.13, lon:15.45}, // Prysmian
         {lat:42.04, lon:14.72}, // Z.I. San Salvo
@@ -105,11 +105,11 @@
         {lat:38.79, lon:15.21}  // Stromboli
     ];
 
-    // FUNZIONE MENU NOTIZIE - Link VVF aggiornato
+    // FUNZIONE MENU NOTIZIE - Link Aggiornati
     window.openNewsMenu = () => {
-        const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco (Dal Territorio)\n2 - Meteo Incendi (EFFIS)\n3 - Twitter Emergenza VVF", "1");
+        const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco (Dal Territorio)\n2 - Campagna 'Io Non Rischio' (Protezione Civile)\n3 - Twitter Emergenza VVF", "1");
         if (scelta === "1") window.open('https://www.vigilfuoco.it/media/notizie/dal-territorio', '_blank');
-        else if (scelta === "2") window.open('https://www.effis.jrc.ec.europa.eu/', '_blank');
+        else if (scelta === "2") window.open('https://www.iononrischio.gov.it/it/preparati/incendi-boschivi/', '_blank');
         else if (scelta === "3") window.open('https://twitter.com/emergenzavvf', '_blank');
     };
 
