@@ -123,6 +123,7 @@
         }
     };
 
+    // LEGENDA PRINCIPALE (Sinistra)
     const legend = L.control({position: 'bottomleft'});
     legend.onAdd = function () {
         const div = L.DomUtil.create('div', 'legend');
@@ -134,6 +135,21 @@
         return div;
     };
     legend.addTo(map);
+
+    // LEGENDA INTENSITÀ (Destra)
+    const intensityLegend = L.control({position: 'bottomright'});
+    intensityLegend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'legend');
+        div.innerHTML = `
+            <div style="text-align:center; border-bottom:1px solid #ccc; margin-bottom:5px;">INTENSITÀ</div>
+            <div><i class="fas fa-fire" style="color:#ffff00"></i> Moderato</div>
+            <div><i class="fas fa-fire" style="color:#ffcc00"></i> Medio</div>
+            <div><i class="fas fa-fire" style="color:#ff6666"></i> Elevato</div>
+            <div><i class="fas fa-fire" style="color:#800000"></i> Critico</div>
+        `;
+        return div;
+    };
+    intensityLegend.addTo(map);
 
     async function loadNasaData() {
         try {
