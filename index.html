@@ -53,18 +53,18 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
 
-    // BLACKLIST PERMANENTE FALSI POSITIVI
+    // BLACKLIST RIMozione TOTALE (Questi punti non verranno mai disegnati)
     const blacklist = [
+        {lat: 37.20, lon: 15.17, name: "Sonatrach Augusta"}, // Rimosso permanentemente
+        {lat: 37.13, lon: 15.18, name: "Priolo"},
         {lat: 37.75, lon: 14.99, name: "Etna"},
         {lat: 38.79, lon: 15.21, name: "Stromboli"},
-        {lat: 37.20, lon: 15.17, name: "Sonatrach Raffineria Italiana (Augusta)"}, // Localizzazione precisa
-        {lat: 37.13, lon: 15.18, name: "Polo Industriale Priolo"},
-        {lat: 38.20, lon: 15.24, name: "Raffineria Milazzo"},
-        {lat: 39.09, lon: 9.01,  name: "Raffineria Sarroch (Sarlux)"}, //
-        {lat: 40.48, lon: 17.22, name: "Taranto (Ex Ilva)"},
-        {lat: 45.45, lon: 12.23, name: "Porto Marghera"},
-        {lat: 44.91, lon: 8.82,  name: "Sannazzaro Raffineria"},
-        {lat: 43.58, lon: 10.33, name: "Livorno Raffineria"}
+        {lat: 38.20, lon: 15.24, name: "Milazzo"},
+        {lat: 39.09, lon: 9.01,  name: "Sarroch"},
+        {lat: 40.48, lon: 17.22, name: "Taranto"},
+        {lat: 45.45, lon: 12.23, name: "Marghera"},
+        {lat: 44.91, lon: 8.82,  name: "Sannazzaro"},
+        {lat: 43.58, lon: 10.33, name: "Livorno"}
     ];
 
     window.checkAuth = function() {
@@ -98,34 +98,25 @@
                 if (lon > 13.6 && lat > 42.0) inArea = false;
 
                 if (inArea) {
-                    let isBlacklisted = false;
-                    let siteName = "";
-
+                    let shouldSkip = false;
                     blacklist.forEach(site => {
                         const d = Math.sqrt(Math.pow(lat - site.lat, 2) + Math.pow(lon - site.lon, 2));
-                        if (d < 0.07) { 
-                            isBlacklisted = true;
-                            siteName = site.name;
-                        }
+                        if (d < 0.08) shouldSkip = true; // Se è vicino a una raffineria, lo ignora
                     });
 
-                    let iconHtml, popupContent;
+                    if (shouldSkip) continue; // Salta il punto e non disegnare nulla
 
-                    if (isBlacklisted) {
-                        iconHtml = `<i class="fas fa-volcano" style="color:#e67e22; font-size:18px;"></i>`;
-                        popupContent = `<b>⚠️ CALORE NOTO: ${siteName.toUpperCase()}</b><br>Impianto industriale. Non conteggiato come incendio.<br><i>Temp: ${temp}°C</i>`;
-                    } else {
-                        iconHtml = `<i class="fas fa-fire" style="color:${temp > 60 ? '#d73027' : '#fdae61'}; font-size:16px;"></i>`;
-                        popupContent = `<b>🔥 INCENDIO BOSCHIVO</b><br>Temperatura rilevata: ${temp}°C`;
-                        nReal++;
-                    }
+                    // Se arriva qui, è un incendio boschivo reale
+                    nReal++;
+                    let iconHtml = `<i class="fas fa-fire" style="color:${temp > 60 ? '#d73027' : '#fdae61'}; font-size:16px;"></i>`;
+                    let popupContent = `<b>🔥 INCENDIO BOSCHIVO</b><br>Temperatura rilevata: ${temp}°C`;
 
                     L.marker([lat, lon], { icon: L.divIcon({ html: iconHtml, className: 'f-icon' }) })
                      .addTo(nasaLayer).bindPopup(popupContent);
                 }
             }
             document.getElementById('count').innerText = `${nReal} Incendi in Italia`;
-        } catch (e) { console.error("Errore NASA"); }
+        } catch (e) { console.error("Errore"); }
     }
 
     function loadCloudData() {
@@ -146,19 +137,11 @@
             const div = L.DomUtil.create('div', 'legend');
             div.innerHTML = '<b>LEGENDA</b><br>' +
                             '<i class="fas fa-fire" style="color:#d73027"></i> Incendio Boschivo<br>' +
-                            '<i class="fas fa-volcano" style="color:#e67e22"></i> Calore Noto (Industria/Vulcano)<br>' +
                             '<i class="fas fa-camera" style="color:purple"></i> Segnalazione Staff';
             return div;
         };
         legend.addTo(map);
     }
-
-    map.on('click', async (e) => {
-        if (document.getElementById('login-section').innerHTML.includes("OPERATIVO")) {
-            const desc = prompt("Descrizione evento:");
-            if (desc) await addDoc(collection(db, "segnalazioni"), { lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, timestamp: new Date() });
-        }
-    });
 </script>
 </body>
 </html>
