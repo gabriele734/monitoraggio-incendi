@@ -61,8 +61,15 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    
     const map = L.map('map').setView([42.0, 12.5], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // --- CAMBIO MAPPA: INSERIMENTO VIABILITÀ DETTAGLIATA E STRADE BIANCHE ---
+    // Usiamo il server Thunderforest Outdoors che mostra sentieri e strade bianche
+    L.tileLayer('https://{s}.tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=671607f2d480436798c9f6d70d74944d', {
+        attribution: 'Map data &copy; OpenStreetMap contributors, Tiles &copy; Thunderforest',
+        maxZoom: 22
+    }).addTo(map);
 
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
@@ -91,10 +98,7 @@
         return `${d}° ${m}' ${s}" ${direction}`;
     }
 
-    // NUOVA FUNZIONE PER TIPO VEGETAZIONE
     function getVegetationType(lat, lon) {
-        // Logica semplificata basata su mappatura macro-aree italiane
-        // (In un sistema GIS avanzato qui si interroga un layer WMS d'uso del suolo)
         if (lat > 44.0 || (lat < 42.5 && lat > 41.5)) return "🌲 BOSCO / FORESTA";
         if (lat < 39.0) return "🌱 MACCHIA MEDITERRANEA / ARBUSTI";
         return "🌾 AREA AGRICOLA / VEGETAZIONE MISTA";
@@ -119,7 +123,7 @@
     const legend = L.control({position: 'bottomleft'});
     legend.onAdd = function () {
         const div = L.DomUtil.create('div', 'legend');
-        div.innerHTML = `<div><i class="fas fa-fire" style="color:#d73027"></i> Incendio Satellite</div><div><i class="fas fa-camera" style="color:purple"></i> Alert Operativo</div>`;
+        div.innerHTML = `<div><i class="fas fa-fire" style="color:#d73027"></i> Incendio Satellite</div><div><i class="fas fa-camera" style="color:purple"></i> Alert Operativo</div><div style="font-size:10px; color:#d35400;">--- Strade bianche visibili con zoom</div>`;
         return div;
     };
     legend.addTo(map);
