@@ -82,7 +82,6 @@
         {lat:38.79, lon:15.21}
     ];
 
-    // --- FUNZIONE CONVERSIONE GRADI/PRIMI/SECONDI ---
     function toDMS(deg, pos, neg) {
         const absolute = Math.abs(deg);
         const d = Math.floor(absolute);
@@ -92,8 +91,17 @@
         return `${d}° ${m}' ${s}" ${direction}`;
     }
 
+    // NUOVA FUNZIONE PER TIPO VEGETAZIONE
+    function getVegetationType(lat, lon) {
+        // Logica semplificata basata su mappatura macro-aree italiane
+        // (In un sistema GIS avanzato qui si interroga un layer WMS d'uso del suolo)
+        if (lat > 44.0 || (lat < 42.5 && lat > 41.5)) return "🌲 BOSCO / FORESTA";
+        if (lat < 39.0) return "🌱 MACCHIA MEDITERRANEA / ARBUSTI";
+        return "🌾 AREA AGRICOLA / VEGETAZIONE MISTA";
+    }
+
     window.openNewsMenu = () => {
-        const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco (Dal Territorio)\n2 - Campagna 'Io Non Rischio' (Protezione Civile)\n3 - Geoportale Nazionale (AIB)", "1");
+        const scelta = prompt("Scegli la fonte notizie:\n1 - Vigili del Fuoco\n2 - Protezione Civile\n3 - Geoportale AIB", "1");
         if (scelta === "1") window.open('https://www.vigilfuoco.it/media/notizie/dal-territorio', '_blank');
         else if (scelta === "2") window.open('https://www.iononrischio.gov.it/it/preparati/incendi-boschivi/', '_blank');
         else if (scelta === "3") window.open('http://www.pcn.minambiente.it/viewer/index.php?services=AIB_Incendi_PNZ', '_blank');
@@ -111,11 +119,7 @@
     const legend = L.control({position: 'bottomleft'});
     legend.onAdd = function () {
         const div = L.DomUtil.create('div', 'legend');
-        div.innerHTML = `
-            <div><i class="fas fa-fire" style="color:#d73027"></i> Incendio Satellite</div>
-            <div><i class="fas fa-camera" style="color:purple"></i> Alert Operativo</div>
-            <div style="margin-top:5px; font-size:10px; color:#666; border-top:1px solid #ccc">Filtro Area Attivo</div>
-        `;
+        div.innerHTML = `<div><i class="fas fa-fire" style="color:#d73027"></i> Incendio Satellite</div><div><i class="fas fa-camera" style="color:purple"></i> Alert Operativo</div>`;
         return div;
     };
     legend.addTo(map);
@@ -123,13 +127,7 @@
     const intensityLegend = L.control({position: 'bottomright'});
     intensityLegend.onAdd = function () {
         const div = L.DomUtil.create('div', 'legend');
-        div.innerHTML = `
-            <div style="text-align:center; border-bottom:1px solid #ccc; margin-bottom:5px;">INTENSITÀ</div>
-            <div><i class="fas fa-fire" style="color:#ffff00"></i> Moderato</div>
-            <div><i class="fas fa-fire" style="color:#ffcc00"></i> Medio</div>
-            <div><i class="fas fa-fire" style="color:#ff6666"></i> Elevato</div>
-            <div><i class="fas fa-fire" style="color:#800000"></i> Critico</div>
-        `;
+        div.innerHTML = `<div style="text-align:center; border-bottom:1px solid #ccc; margin-bottom:5px;">INTENSITÀ</div><div><i class="fas fa-fire" style="color:#ffff00"></i> Moderato</div><div><i class="fas fa-fire" style="color:#ffcc00"></i> Medio</div><div><i class="fas fa-fire" style="color:#ff6666"></i> Elevato</div><div><i class="fas fa-fire" style="color:#800000"></i> Critico</div>`;
         return div;
     };
     intensityLegend.addTo(map);
@@ -152,7 +150,6 @@
             for (let i = 1; i < lines.length; i++) {
                 const c = lines[i].split(',');
                 if (c.length < 3) continue;
-                
                 const lat = parseFloat(c[0]);
                 const lon = parseFloat(c[1]);
                 const temp = parseFloat(c[2]);
@@ -165,25 +162,16 @@
 
                 if (inArea) {
                     let skip = false;
-                    blacklist.forEach(s => { 
-                        if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.06) skip=true; 
-                    });
+                    blacklist.forEach(s => { if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.06) skip=true; });
                     if(skip) continue;
 
                     nReal++;
                     const color = getIntensityColor(temp);
-                    const dmsCoords = `<b>COORDINATE DMS:</b><br>${toDMS(lat, 'N', 'S')}<br>${toDMS(lon, 'E', 'W')}`;
+                    const veg = getVegetationType(lat, lon);
+                    const info = `<div style="font-size:12px;"><b>ANALISI AMBIENTALE:</b><br>${veg}<br><br><b>COORD DMS:</b><br>${toDMS(lat, 'N', 'S')}<br>${toDMS(lon, 'E', 'W')}</div>`;
 
-                    L.circle([lat, lon], {
-                        color: color,
-                        fillColor: color,
-                        fillOpacity: 0.4,
-                        radius: 700 
-                    }).addTo(nasaLayer).bindPopup(dmsCoords);
-
-                    L.marker([lat, lon], { 
-                        icon: L.divIcon({ html: `<i class="fas fa-fire" style="color:${color}; font-size:16px; text-shadow: 0 0 3px #000;"></i>`, className: 'f-icon' }) 
-                    }).addTo(nasaLayer).bindPopup(dmsCoords);
+                    L.circle([lat, lon], { color: color, fillColor: color, fillOpacity: 0.4, radius: 700 }).addTo(nasaLayer).bindPopup(info);
+                    L.marker([lat, lon], { icon: L.divIcon({ html: `<i class="fas fa-fire" style="color:${color}; font-size:16px; text-shadow: 0 0 3px #000;"></i>`, className: 'f-icon' }) }).addTo(nasaLayer).bindPopup(info);
                 }
             }
             document.getElementById('count').innerText = `${nReal} Alert Operativi`;
@@ -196,10 +184,8 @@
             cloudLayer.clearLayers();
             snap.forEach(doc => {
                 const d = doc.data();
-                const dmsSegnalazione = `<b>SEGNALAZIONE DMS:</b><br>${toDMS(d.lat, 'N', 'S')}<br>${toDMS(d.lon, 'E', 'W')}`;
-                L.marker([d.lat, d.lon], { 
-                    icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c-icon' }) 
-                }).addTo(cloudLayer).bindPopup(dmsSegnalazione);
+                const dmsSegnalazione = `<b>COORD SEGNALAZIONE:</b><br>${toDMS(d.lat, 'N', 'S')}<br>${toDMS(d.lon, 'E', 'W')}`;
+                L.marker([d.lat, d.lon], { icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c-icon' }) }).addTo(cloudLayer).bindPopup(dmsSegnalazione);
             });
         });
         setInterval(loadNasaData, 600000); 
