@@ -54,7 +54,6 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
 
-    // BLACKLIST AGGIORNATA (Protezione contro falsi positivi)
     const blacklist = [
         {lat: 45.10, lon: 7.51,  name: "Ferriere Nord Rivoli"},
         {lat: 45.45, lon: 10.49, name: "Feralpi Siderurgica Lonato"},
@@ -79,11 +78,15 @@
         {lat: 43.58, lon: 10.33, name: "Livorno"}
     ];
 
-    // CARICAMENTO AUTOMATICO
+    // CARICAMENTO AUTOMATICO E REFRESH OGNI 10 MINUTI
     window.onload = () => {
-        loadNasaData();
+        loadNasaData(); // Subito
         loadCloudData();
         addLegend();
+        
+        setInterval(() => {
+            loadNasaData();
+        }, 600000); // Ogni 10 min
     };
 
     window.checkAuth = function() {
@@ -107,7 +110,6 @@
                 const lon = parseFloat(c[1]);
                 const temp = (parseFloat(c[2]) - 273.15).toFixed(0);
 
-                // FILTRO GEOGRAFICO (Muro Sud 37.0 per tagliare Africa)
                 let inArea = (lat > 37.0 && lat < 47.1) && (lon > 6.6 && lon < 18.5);
                 if (lat > 46.55) inArea = false;
                 if (lon < 9.7 && lat > 41.3 && lat < 43.1) inArea = false;
@@ -158,7 +160,7 @@
 
     map.on('click', async (e) => {
         if (document.getElementById('login-section').innerHTML.includes("OPERATIVO")) {
-            const desc = prompt("Descrizione evento (es. Niardo fiamme all'alba):");
+            const desc = prompt("Descrizione evento:");
             if (desc) await addDoc(collection(db, "segnalazioni"), { lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, timestamp: new Date() });
         }
     });
