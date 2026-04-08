@@ -31,24 +31,15 @@
 
         .ruler-btn {
             background: white;
-            width: 34px;
-            height: 34px;
-            line-height: 34px;
-            text-align: center;
-            cursor: pointer;
+            width: 34px; height: 34px; line-height: 34px;
+            text-align: center; cursor: pointer;
             box-shadow: 0 1px 5px rgba(0,0,0,0.4);
-            border-radius: 4px;
-            color: #333;
-            font-size: 16px;
+            border-radius: 4px; color: #333; font-size: 16px;
         }
         .ruler-btn.active { background: #e74c3c; color: white; }
         .distance-label {
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 12px;
-            white-space: nowrap;
+            background: rgba(0,0,0,0.8); color: white;
+            padding: 2px 6px; border-radius: 4px; font-size: 12px;
         }
     </style>
 </head>
@@ -57,7 +48,7 @@
 <header>
     <div id="stat">
         🇮🇹 MONITORAGGIO ITALIA: <span id="count">...</span>
-        <span class="sub-stat" id="area-est">Superficie stimata: Calcolo in corso...</span>
+        <span class="sub-stat" id="area-est">Superficie stimata: Calcolo...</span>
     </div>
     <div class="login-box">
         <button class="btn-news" onclick="openNewsMenu()">NOTIZIE RAPIDE</button>
@@ -74,7 +65,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { getFirestore, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyClmNoNbNpxk5IjB9LsrQvWqPI1YodxY9E",
@@ -89,11 +80,11 @@
     const db = getFirestore(app);
     
     const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Esri World Imagery', maxZoom: 19
+        attribution: 'Esri', maxZoom: 19
     });
 
     const topografica = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        maxZoom: 17, attribution: 'OpenTopoMap'
+        maxZoom: 17, attribution: 'OpenTopo'
     });
 
     const map = L.map('map', { center: [42.0, 12.5], zoom: 6, layers: [satellite] });
@@ -119,7 +110,6 @@
         }
     });
     map.addControl(new RulerControl());
-
     function resetRuler() { rulerPoints = []; rulerLayers.clearLayers(); }
 
     map.on('click', (e) => {
@@ -152,7 +142,7 @@
     const overlayMaps = { "⚠️ Rischio Storico": riskLayer, "🔥 Incendi NASA": nasaLayer, "📸 Alert Cloud": cloudLayer };
     L.control.layers(baseMaps, overlayMaps, { collapsed: false, position: 'topright' }).addTo(map);
     
-    const blacklist = [{lat:41.13, lon:15.45}, {lat:42.04, lon:14.72}, {lat:44.78, lon:10.73}, {lat:37.20, lon:15.17}, {lat:45.47, lon:10.22}];
+    const blacklist = [{lat:41.13, lon:15.45}, {lat:42.04, lon:14.72}, {lat:44.78, lon:10.73}, {lat:37.20, lon:15.17}];
 
     function toDMS(deg, pos, neg) {
         const absolute = Math.abs(deg);
@@ -177,7 +167,7 @@
     const legend = L.control({position: 'bottomleft'});
     legend.onAdd = function () {
         const div = L.DomUtil.create('div', 'legend');
-        div.innerHTML = `<div><i class="fas fa-fire" style="color:#d73027"></i> Incendio Sat</div>
+        div.innerHTML = `<div><i class="fas fa-fire" style="color:#d73027"></i> Incendio Attivo</div>
                          <div><i class="fas fa-camera" style="color:purple"></i> Alert Operativo</div>`;
         return div;
     };
@@ -190,7 +180,7 @@
             const lines = csv.split('\n');
             let nReal = 0;
             let totalAreaHectares = 0;
-            const AREA_PER_PIXEL = 14.06; // 375m x 375m ≈ 14.06 ettari
+            const AREA_PER_PIXEL = 14.06;
 
             nasaLayer.clearLayers();
             for (let i = 1; i < lines.length; i++) {
@@ -206,12 +196,22 @@
                     totalAreaHectares += AREA_PER_PIXEL;
                     
                     const info = `<div style="font-size:11px;"><b>SITO:</b> Incendio Attivo<br><b>AREA STIMATA:</b> ~14 ha<br><b>COORDS:</b> ${toDMS(lat,'N','S')} ${toDMS(lon,'E','W')}</div>`;
-                    L.circle([lat, lon], { color: 'red', weight: 1, fillColor: '#f03', fillOpacity: 0.4, radius: 375 }).addTo(nasaLayer).bindPopup(info);
+                    
+                    // Ripristino Fiamma + Cerchio Area
+                    L.circle([lat, lon], { color: 'red', weight: 1, fillColor: '#f03', fillOpacity: 0.3, radius: 375 }).addTo(nasaLayer);
+                    L.marker([lat, lon], { 
+                        icon: L.divIcon({ 
+                            html: `<i class="fas fa-fire" style="color:#ff4500; font-size:20px; text-shadow: 0 0 5px #000;"></i>`, 
+                            className: 'fire-icon',
+                            iconSize: [20, 20],
+                            iconAnchor: [10, 10]
+                        }) 
+                    }).addTo(nasaLayer).bindPopup(info);
                 }
             }
             document.getElementById('count').innerText = `${nReal} Alert Operativi`;
             document.getElementById('area-est').innerText = `Superficie colpita stimata: ${totalAreaHectares.toLocaleString('it-IT')} Ettari (ha)`;
-        } catch (e) { console.error("Errore calcolo area NASA"); }
+        } catch (e) { console.error("Errore NASA"); }
     }
 
     window.onload = () => {
