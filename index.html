@@ -12,7 +12,7 @@
         #map { height: calc(100vh - 60px); width: 100%; background: #222; }
         .login-box input { padding: 8px; border-radius: 4px; border: 1px solid #444; background: #333; color: white; margin-right: 5px; width: 150px; }
         .login-box button { padding: 8px 15px; background: #e74c3c; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
-        .legend { background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 10px; color: black; font-size: 13px; line-height: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.6); }
+        .legend { background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 10px; color: black; font-size: 13px; box-shadow: 0 0 15px rgba(0,0,0,0.6); }
         .legend i { width: 18px; height: 18px; float: left; margin-right: 10px; text-align: center; }
         #stat { font-weight: bold; font-size: 1.1em; color: #fff; }
         .f-icon { display: flex; align-items: center; justify-content: center; }
@@ -53,18 +53,10 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
 
-    // DATABASE BLACKLIST COMPLETO (Falsi Positivi)
-    const blackList = [
-        {lat: 37.75, lon: 14.99, type: "volcano", name: "Etna"},
-        {lat: 38.79, lon: 15.21, type: "volcano", name: "Stromboli"},
-        {lat: 38.20, lon: 15.24, type: "industry", name: "Raffineria di Milazzo (Sicilia)"},
-        {lat: 39.09, lon: 9.01,  type: "industry", name: "Raffineria Sarroch (Sardegna)"},
-        {lat: 40.48, lon: 17.22, type: "industry", name: "Taranto (Ex Ilva)"},
-        {lat: 37.13, lon: 15.18, type: "industry", name: "Priolo (Raffineria)"},
-        {lat: 45.45, lon: 12.23, type: "industry", name: "Porto Marghera"},
-        {lat: 44.91, lon: 8.82,  type: "industry", name: "Sannazzaro Raffineria"},
-        {lat: 43.58, lon: 10.33, type: "industry", name: "Livorno Raffineria"},
-        {lat: 42.92, lon: 10.53, type: "industry", name: "Piombino Acciaieria"}
+    // DATABASE SOLO VULCANI (Raffinerie rimosse come richiesto)
+    const volcanoList = [
+        {lat: 37.75, lon: 14.99, name: "Etna"},
+        {lat: 38.79, lon: 15.21, name: "Stromboli"}
     ];
 
     window.checkAuth = function() {
@@ -91,38 +83,31 @@
                 const lon = parseFloat(c[1]);
                 const temp = (parseFloat(c[2]) - 273.15).toFixed(0);
 
-                // --- FILTRO CONFINI RIGIDO ---
-                // Taglio Sud: rimosso Nord Africa
+                // --- FILTRO GEOGRAFICO RIGIDO ---
                 let inArea = (lat > 36.55 && lat < 47.1) && (lon > 6.6 && lon < 18.5);
-                // Taglio Nord: rimosse Alpi estere
-                if (lat > 46.55) inArea = false;
-                // Taglio Ovest: rimossa Corsica
-                if (lon < 9.7 && lat > 41.3 && lat < 43.1) inArea = false;
-                // Taglio Est: rimossi Balcani
-                if (lon > 13.6 && lat > 42.0) inArea = false;
+                if (lat > 46.55) inArea = false; // No oltre Alpi
+                if (lon < 9.7 && lat > 41.3 && lat < 43.1) inArea = false; // No Corsica
+                if (lon > 13.6 && lat > 42.0) inArea = false; // No Balcani
 
                 if (inArea) {
-                    let isKnown = false;
-                    let siteName = "";
-                    let iconHtml = "";
-                    let popupContent = "";
+                    let isVolcano = false;
+                    let vName = "";
 
-                    blackList.forEach(point => {
-                        const d = Math.sqrt(Math.pow(lat - point.lat, 2) + Math.pow(lon - point.lon, 2));
+                    volcanoList.forEach(v => {
+                        const d = Math.sqrt(Math.pow(lat - v.lat, 2) + Math.pow(lon - v.lon, 2));
                         if (d < 0.06) {
-                            isKnown = true;
-                            siteName = point.name;
-                            if (point.type === "volcano") {
-                                iconHtml = `<i class="fas fa-volcano" style="color:#e67e22; font-size:18px;"></i>`;
-                                popupContent = `<b>🌋 ATTIVITÀ VULCANICA: ${siteName.toUpperCase()}</b><br>Non è un incendio boschivo.<br><i>Temp: ${temp}°C</i>`;
-                            } else {
-                                iconHtml = `<i class="fas fa-gear" style="color:#3498db; font-size:18px;"></i>`;
-                                popupContent = `<b>⚙️ SITO INDUSTRIALE: ${siteName.toUpperCase()}</b><br>Raffineria nota.<br><i>Temp: ${temp}°C</i>`;
-                            }
+                            isVolcano = true;
+                            vName = v.name;
                         }
                     });
 
-                    if (!isKnown) {
+                    let iconHtml, popupContent;
+
+                    if (isVolcano) {
+                        iconHtml = `<i class="fas fa-volcano" style="color:#e67e22; font-size:18px;"></i>`;
+                        popupContent = `<b>🌋 ATTIVITÀ VULCANICA: ${vName.toUpperCase()}</b><br>Non è un incendio boschivo.<br><i>Temp: ${temp}°C</i>`;
+                    } else {
+                        // Se non è vulcano ed è in Italia, è un incendio boschivo
                         iconHtml = `<i class="fas fa-fire" style="color:${temp > 60 ? '#d73027' : '#fdae61'}; font-size:16px;"></i>`;
                         popupContent = `<b>🔥 INCENDIO BOSCHIVO</b><br>Temperatura: ${temp}°C`;
                         nReal++;
@@ -132,8 +117,8 @@
                      .addTo(nasaLayer).bindPopup(popupContent);
                 }
             }
-            document.getElementById('count').innerText = `${nReal} Incendi Boschivi in Italia`;
-        } catch (e) { console.error("Errore fetch dati"); }
+            document.getElementById('count').innerText = `${nReal} Incendi in Italia`;
+        } catch (e) { console.error("Errore"); }
     }
 
     function loadCloudData() {
@@ -152,11 +137,10 @@
         const legend = L.control({position: 'bottomright'});
         legend.onAdd = function() {
             const div = L.DomUtil.create('div', 'legend');
-            div.innerHTML = '<b>LEGENDA OPERATIVA</b><br>' +
-                            '<i class="fas fa-fire" style="color:#d73027"></i> Incendio Boschivo (Pericolo)<br>' +
-                            '<i class="fas fa-gear" style="color:#3498db"></i> Sito Industriale (Falso Post.)<br>' +
-                            '<i class="fas fa-volcano" style="color:#e67e22"></i> Attività Vulcanica (Falso Post.)<br>' +
-                            '<i class="fas fa-camera" style="color:purple"></i> Segnalazione Staff (Cloud)';
+            div.innerHTML = '<b>LEGENDA</b><br>' +
+                            '<i class="fas fa-fire" style="color:#d73027"></i> Incendio Boschivo<br>' +
+                            '<i class="fas fa-volcano" style="color:#e67e22"></i> Attività Vulcanica<br>' +
+                            '<i class="fas fa-camera" style="color:purple"></i> Segnalazione Staff';
             return div;
         };
         legend.addTo(map);
