@@ -20,7 +20,7 @@
 <body>
 
 <header>
-    <div id="stat">🇮🇹 MONITORAGGIO ITALIA: <span id="count">Filtro falsi positivi attivo...</span></div>
+    <div id="stat">🇮🇹 MONITORAGGIO ITALIA: <span id="count">Blacklist Totale Attiva...</span></div>
     <div class="login-box">
         <button class="btn-news" onclick="window.open('https://www.vigilfuoco.tv/notizie')">NOTIZIE RAPIDE</button>
         <div id="login-section">
@@ -55,9 +55,9 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
     
-    // --- BLACKLIST DEFINITIVA FALSI POSITIVI ---
+    // --- BLACKLIST STORICA E RECENTE UNIFICATA ---
     const blacklist = [
-        // Richieste Recenti
+        // Settore Industriale e Ceramiche (Ultime richieste)
         {lat:41.13, lon:15.45}, // Prysmian (Sette Torri)
         {lat:42.04, lon:14.72}, // Z.I. San Salvo (Piane Sant'Angelo)
         {lat:44.78, lon:10.73}, // Panaria Ceramiche (Canaletto)
@@ -70,10 +70,23 @@
         {lat:45.85, lon:8.97},  // Z.I. Stabio (Svizzera)
         {lat:46.96, lon:7.16},  // Galmiz (Svizzera)
         
-        // Raffinerie e Siti già noti
-        {lat:45.10, lon:8.82}, {lat:45.45, lon:12.23}, {lat:37.20, lon:15.17}, 
-        {lat:37.13, lon:15.18}, {lat:40.59, lon:18.03}, {lat:40.48, lon:17.22},
-        {lat:38.20, lon:15.24}, {lat:39.09, lon:9.01}, {lat:37.75, lon:14.99}
+        // Raffinerie e Petrolchimici
+        {lat:45.10, lon:8.82},  // Sannazzaro (Raffineria ENI)
+        {lat:45.45, lon:12.23}, // Porto Marghera
+        {lat:37.20, lon:15.17}, // Priolo
+        {lat:37.13, lon:15.18}, // Augusta
+        {lat:40.59, lon:18.03}, // Brindisi
+        {lat:40.48, lon:17.22}, // Taranto (ILVA)
+        {lat:38.20, lon:15.24}, // Milazzo
+        {lat:39.09, lon:9.01},  // Sarroch (Saras)
+        {lat:43.58, lon:10.33}, // Livorno
+        {lat:44.29, lon:8.44},  // Vado Ligure
+        
+        // Vulcani e falsi positivi naturali
+        {lat:37.75, lon:14.99}, // Etna
+        {lat:38.79, lon:15.21}, // Stromboli
+        {lat:45.10, lon:7.51},  // Zona Torino Est
+        {lat:45.47, lon:10.22}  // Brescia Est
     ];
 
     async function loadNasaData() {
@@ -90,18 +103,18 @@
                 const lat = parseFloat(c[0]);
                 const lon = parseFloat(c[1]);
 
+                // --- FILTRO GEOGRAFICO PER CONFINE ITALIA ---
                 let inArea = false;
-                if (lat > 44.2 && lat < 47.1 && lon > 6.6 && lon < 13.5) inArea = true; 
-                else if (lat > 37.5 && lat <= 44.2 && lon > 8.0 && lon < 17.5) inArea = true; 
-                else if (lat > 36.5 && lat <= 37.5 && lon > 12.1 && lon < 15.6) inArea = true;
-                else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) inArea = true;
+                if (lat > 44.2 && lat < 47.1 && lon > 6.6 && lon < 13.5) inArea = true; // Nord
+                else if (lat > 37.5 && lat <= 44.2 && lon > 8.0 && lon < 17.5) inArea = true; // Centro-Sud
+                else if (lat > 36.5 && lat <= 37.5 && lon > 12.1 && lon < 15.6) inArea = true; // Sicilia
+                else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) inArea = true; // Sardegna
 
                 if (inArea) {
                     let skip = false;
                     blacklist.forEach(s => { 
-                        if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.04) skip=true; 
+                        if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.05) skip=true; 
                     });
-                    
                     if(skip) continue;
 
                     nReal++;
@@ -111,7 +124,7 @@
                 }
             }
             document.getElementById('count').innerText = `${nReal} Incendi (Satellite)`;
-        } catch (e) { console.error("Errore"); }
+        } catch (e) { console.error("Errore NASA"); }
     }
 
     window.checkAuth = () => {
