@@ -47,21 +47,23 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-    const map = L.map('map').setView([40.0, 12.5], 6);
+    const map = L.map('map').setView([42.0, 12.5], 6);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
 
-    // Database Siti Noti (Falsi Positivi)
     const blackList = [
         {lat: 37.75, lon: 14.99, type: "volcano", name: "Etna"},
         {lat: 38.79, lon: 15.21, type: "volcano", name: "Stromboli"},
-        {lat: 38.20, lon: 15.24, type: "industry", name: "Raffineria di Milazzo (Sicilia)"},
-        {lat: 39.09, lon: 9.01,  type: "industry", name: "Raffineria Sarroch (Sardegna)"}, // Aggiunta Sardegna
+        {lat: 38.20, lon: 15.24, type: "industry", name: "Raffineria di Milazzo"},
+        {lat: 39.09, lon: 9.01,  type: "industry", name: "Raffineria Sarroch"},
         {lat: 40.48, lon: 17.22, type: "industry", name: "Taranto (Ex Ilva)"},
-        {lat: 37.13, lon: 15.18, type: "industry", name: "Priolo (Sicilia)"},
-        {lat: 45.45, lon: 12.23, type: "industry", name: "Porto Marghera"}
+        {lat: 37.13, lon: 15.18, type: "industry", name: "Priolo (Raffineria)"},
+        {lat: 45.45, lon: 12.23, type: "industry", name: "Porto Marghera"},
+        {lat: 44.91, lon: 8.82,  type: "industry", name: "Sannazzaro Raffineria"},
+        {lat: 43.58, lon: 10.33, type: "industry", name: "Livorno Raffineria"},
+        {lat: 42.92, lon: 10.53, type: "industry", name: "Piombino Acciaieria"}
     ];
 
     window.checkAuth = function() {
@@ -88,9 +90,18 @@
                 const lon = parseFloat(c[1]);
                 const temp = (parseFloat(c[2]) - 273.15).toFixed(0);
 
-                let inArea = (lat > 36.5 && lat < 47.1) && (lon > 6.6 && lon < 18.5);
-                // Filtro "Muri di confine" (No Corsica, No Svizzera, No Balcani)
-                if (lat > 46.55 || (lon > 13.6 && lat > 42.0) || (lon < 9.7 && lat > 41.3 && lat < 43.1)) inArea = false;
+                // --- FILTRO CONFINI RIGIDO ---
+                // 1. Taglio Nord Africa (Sotto la Sicilia)
+                let inArea = (lat > 36.55 && lat < 47.1) && (lon > 6.6 && lon < 18.5);
+                
+                // 2. Taglio Svizzera/Austria
+                if (lat > 46.55) inArea = false;
+                
+                // 3. Taglio Corsica
+                if (lon < 9.7 && lat > 41.3 && lat < 43.1) inArea = false;
+                
+                // 4. Taglio Balcani/Grecia
+                if (lon > 13.6 && lat > 42.0) inArea = false;
 
                 if (inArea) {
                     let isKnown = false;
@@ -105,10 +116,10 @@
                             siteName = point.name;
                             if (point.type === "volcano") {
                                 iconHtml = `<i class="fas fa-volcano" style="color:#e67e22; font-size:18px;"></i>`;
-                                popupContent = `<b>🌋 ATTIVITÀ VULCANICA: ${siteName.toUpperCase()}</b><br>Rilevamento termico satellitare.<br>Non è un incendio.<br><i>Temp: ${temp}°C</i>`;
+                                popupContent = `<b>🌋 ATTIVITÀ VULCANICA: ${siteName.toUpperCase()}</b><br>Non si tratta di un incendio boschivo.<br><i>Temp: ${temp}°C</i>`;
                             } else {
                                 iconHtml = `<i class="fas fa-gear" style="color:#3498db; font-size:18px;"></i>`;
-                                popupContent = `<b>⚙️ SITO INDUSTRIALE: ${siteName.toUpperCase()}</b><br>Raffineria/Industria nota.<br>Non è un incendio boschivo.<br><i>Temp: ${temp}°C</i>`;
+                                popupContent = `<b>⚙️ SITO INDUSTRIALE: ${siteName.toUpperCase()}</b><br>Raffineria/Industria nota.<br>Non è un incendio.<br><i>Temp: ${temp}°C</i>`;
                             }
                         }
                     });
@@ -123,8 +134,8 @@
                      .addTo(nasaLayer).bindPopup(popupContent);
                 }
             }
-            document.getElementById('count').innerText = `${nReal} Incendi Boschivi`;
-        } catch (e) { console.error("Errore dati"); }
+            document.getElementById('count').innerText = `${nReal} Incendi in Italia`;
+        } catch (e) { console.error("Errore"); }
     }
 
     function loadCloudData() {
@@ -133,12 +144,13 @@
             snap.forEach(doc => {
                 const d = doc.data();
                 L.marker([d.lat, d.lon], { icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c-icon' }) })
-                 .addTo(cloudLayer).bindPopup(`<b>Segnalazione Cloud:</b><br>${d.desc}`);
+                 .addTo(cloudLayer).bindPopup(`<b>Segnalazione Staff:</b><br>${d.desc}`);
             });
         });
     }
 
     function addLegend() {
+        if (document.querySelector('.legend')) return;
         const legend = L.control({position: 'bottomright'});
         legend.onAdd = function() {
             const div = L.DomUtil.create('div', 'legend');
@@ -146,7 +158,7 @@
                             '<i class="fas fa-fire" style="color:#d73027"></i> Incendio Boschivo<br>' +
                             '<i class="fas fa-gear" style="color:#3498db"></i> Raffineria / Industria<br>' +
                             '<i class="fas fa-volcano" style="color:#e67e22"></i> Attività Vulcanica<br>' +
-                            '<i class="fas fa-camera" style="color:purple"></i> Segnalazione Cloud';
+                            '<i class="fas fa-camera" style="color:purple"></i> Segnalazione Staff';
             return div;
         };
         legend.addTo(map);
