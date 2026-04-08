@@ -94,6 +94,16 @@
     };
     legend.addTo(map);
 
+    // FIX: Rendiamo checkAuth visibile al pulsante fuori dal modulo
+    window.checkAuth = () => {
+        const code = document.getElementById('operator-code').value;
+        if (code === "GABRIELE_STAFF") {
+            document.getElementById('login-section').innerHTML = "<b style='color:#2ecc71'>⭐ OPERATIVO</b>";
+        } else {
+            alert("Codice errato");
+        }
+    };
+
     async function loadNasaData() {
         try {
             const res = await fetch(`https://corsproxy.io/?https://firms.modaps.eosdis.nasa.gov/api/area/csv/6c7f29542d837e182b0bf7292cb52b99/VIIRS_SNPP_NRT/world/1`);
@@ -123,12 +133,12 @@
 
                     nReal++;
                     
-                    // AGGIUNTA CERCHIO ATTORNO ALL'INCENDIO
+                    // CERCHI ROSSI RIPRISTINATI
                     L.circle([lat, lon], {
                         color: '#d73027',
                         fillColor: '#f46d43',
                         fillOpacity: 0.3,
-                        radius: 500 // Raggio in metri
+                        radius: 500 
                     }).addTo(nasaLayer);
 
                     L.marker([lat, lon], { 
@@ -137,14 +147,8 @@
                 }
             }
             document.getElementById('count').innerText = `${nReal} Incendi / Alert Attivi`;
-        } catch (e) { console.error("Errore"); }
+        } catch (e) { console.error("Errore NASA"); }
     }
-
-    window.checkAuth = () => {
-        if (document.getElementById('operator-code').value === "GABRIELE_STAFF") {
-            document.getElementById('login-section').innerHTML = "<b style='color:#2ecc71'>⭐ OPERATIVO</b>";
-        }
-    };
 
     window.onload = () => {
         loadNasaData();
