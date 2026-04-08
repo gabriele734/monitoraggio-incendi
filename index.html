@@ -14,14 +14,13 @@
         .login-box { display: flex; align-items: center; }
         .btn-news { background: #3498db; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 15px; }
         .btn-login { padding: 8px 15px; background: #e74c3c; color: white; border: none; cursor: pointer; border-radius: 4px; font-weight: bold; }
-        .legend { background: rgba(255, 255, 255, 0.95); padding: 12px; border-radius: 10px; color: black; font-size: 13px; box-shadow: 0 0 15px rgba(0,0,0,0.6); }
         #stat { font-weight: bold; font-size: 1.1em; color: #fff; }
     </style>
 </head>
 <body>
 
 <header>
-    <div id="stat">🇮🇹 MONITORAGGIO ITALIA: <span id="count">Sistema attivo...</span></div>
+    <div id="stat">🇮🇹 MONITORAGGIO ITALIA: <span id="count">Filtro falsi positivi attivo...</span></div>
     <div class="login-box">
         <button class="btn-news" onclick="window.open('https://www.vigilfuoco.tv/notizie')">NOTIZIE RAPIDE</button>
         <div id="login-section">
@@ -56,28 +55,25 @@
     const nasaLayer = L.layerGroup().addTo(map);
     const cloudLayer = L.layerGroup().addTo(map);
     
-    // BLACKLIST RAFFINERIE E SITI INDUSTRIALI AGGIORNATA
+    // --- BLACKLIST DEFINITIVA FALSI POSITIVI ---
     const blacklist = [
-        {lat:45.10, lon:8.82},  // Sannazzaro de' Burgondi (Raffineria ENI)
-        {lat:45.45, lon:12.23}, // Porto Marghera
-        {lat:37.20, lon:15.17}, // Priolo Gargallo (Siracusa)
-        {lat:37.13, lon:15.18}, // Augusta
-        {lat:40.59, lon:18.03}, // Brindisi (Petrolchimico)
-        {lat:40.48, lon:17.22}, // Taranto (ILVA/Raffineria)
-        {lat:44.29, lon:8.44},  // Vado Ligure
-        {lat:43.58, lon:10.33}, // Livorno (Raffineria ENI)
-        {lat:45.47, lon:10.22}, // Brescia Est
-        {lat:45.15, lon:9.97},  // Cremona
-        {lat:45.64, lon:9.61},  // Dalmine
-        {lat:45.72, lon:9.47},  // Lecco
-        {lat:45.79, lon:8.70},  // Vergiate
-        {lat:45.38, lon:11.92}, // Padova
-        {lat:40.58, lon:9.71},  // Sardegna Est
-        {lat:39.20, lon:8.39},  // Portoscuso
-        {lat:37.75, lon:14.99}, // Etna (Falso positivo termico)
-        {lat:38.79, lon:15.21}, // Stromboli
-        {lat:38.20, lon:15.24}, // Milazzo (Raffineria)
-        {lat:39.09, lon:9.01}   // Sarroch (Raffineria Saras)
+        // Richieste Recenti
+        {lat:41.13, lon:15.45}, // Prysmian (Sette Torri)
+        {lat:42.04, lon:14.72}, // Z.I. San Salvo (Piane Sant'Angelo)
+        {lat:44.78, lon:10.73}, // Panaria Ceramiche (Canaletto)
+        {lat:45.44, lon:10.49}, // Feralpi Siderurgica (Lonato)
+        {lat:45.69, lon:11.44}, // Rossifloor (Marano Vicentino)
+        {lat:45.72, lon:11.38}, // Z.I. Schio (Zanè)
+        {lat:45.73, lon:11.78}, // Aggregato Cassola
+        {lat:45.92, lon:12.31}, // Z.I. Vittorio Veneto
+        {lat:46.20, lon:13.13}, // Ferriere Nord (Rivoli)
+        {lat:45.85, lon:8.97},  // Z.I. Stabio (Svizzera)
+        {lat:46.96, lon:7.16},  // Galmiz (Svizzera)
+        
+        // Raffinerie e Siti già noti
+        {lat:45.10, lon:8.82}, {lat:45.45, lon:12.23}, {lat:37.20, lon:15.17}, 
+        {lat:37.13, lon:15.18}, {lat:40.59, lon:18.03}, {lat:40.48, lon:17.22},
+        {lat:38.20, lon:15.24}, {lat:39.09, lon:9.01}, {lat:37.75, lon:14.99}
     ];
 
     async function loadNasaData() {
@@ -95,29 +91,15 @@
                 const lon = parseFloat(c[1]);
 
                 let inArea = false;
-
-                // 1. NORD (No Svizzera/Slovenia)
-                if (lat > 44.2 && lat < 47.1) {
-                    if (lon > 6.6 && lon < 13.5) inArea = true; 
-                }
-                // 2. CENTRO-SUD (No Balcani)
-                else if (lat > 37.5 && lat <= 44.2) {
-                    if (lon > 8.0 && lon < 17.5) inArea = true; 
-                }
-                // 3. SICILIA (No Tunisia)
-                else if (lat > 36.5 && lat <= 37.5) {
-                    if (lon > 12.1 && lon < 15.6) inArea = true;
-                }
-                // 4. SARDEGNA
-                else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) {
-                    inArea = true;
-                }
+                if (lat > 44.2 && lat < 47.1 && lon > 6.6 && lon < 13.5) inArea = true; 
+                else if (lat > 37.5 && lat <= 44.2 && lon > 8.0 && lon < 17.5) inArea = true; 
+                else if (lat > 36.5 && lat <= 37.5 && lon > 12.1 && lon < 15.6) inArea = true;
+                else if (lat > 38.8 && lat < 41.5 && lon > 8.0 && lon < 10.0) inArea = true;
 
                 if (inArea) {
                     let skip = false;
-                    // Filtro Blacklist con raggio di precisione (0.06 gradi)
                     blacklist.forEach(s => { 
-                        if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.06) skip=true; 
+                        if(Math.sqrt(Math.pow(lat-s.lat,2)+Math.pow(lon-s.lon,2)) < 0.04) skip=true; 
                     });
                     
                     if(skip) continue;
@@ -132,33 +114,21 @@
         } catch (e) { console.error("Errore"); }
     }
 
-    function loadCloudData() {
+    window.checkAuth = () => {
+        if (document.getElementById('operator-code').value === "GABRIELE_STAFF") {
+            document.getElementById('login-section').innerHTML = "<b style='color:#2ecc71'>⭐ OPERATIVO</b>";
+        }
+    };
+
+    window.onload = () => {
+        loadNasaData();
         onSnapshot(query(collection(db, "segnalazioni"), orderBy("timestamp", "desc")), (snap) => {
             cloudLayer.clearLayers();
             snap.forEach(doc => {
                 const d = doc.data();
-                L.marker([d.lat, d.lon], { icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c-icon' }) })
-                 .addTo(cloudLayer).bindPopup(`<b>Staff:</b><br>${d.desc}`);
+                L.marker([d.lat, d.lon], { icon: L.divIcon({ html: `<i class="fas fa-camera" style="color:purple; font-size:18px;"></i>`, className: 'c-icon' }) }).addTo(cloudLayer);
             });
         });
-    }
-
-    window.checkAuth = () => {
-        if (document.getElementById('operator-code').value === "GABRIELE_STAFF") {
-            document.getElementById('login-section').innerHTML = "<b style='color:#2ecc71'>⭐ OPERATIVO</b>";
-        } else { alert("Codice errato"); }
-    };
-
-    map.on('click', async (e) => {
-        if (document.getElementById('login-section').innerHTML.includes("OPERATIVO")) {
-            const desc = prompt("Inserisci descrizione incendio:");
-            if (desc) await addDoc(collection(db, "segnalazioni"), { lat: e.latlng.lat, lon: e.latlng.lng, desc: desc, timestamp: new Date() });
-        }
-    });
-
-    window.onload = () => {
-        loadNasaData();
-        loadCloudData();
         setInterval(loadNasaData, 600000); 
     };
 </script>
