@@ -71,17 +71,35 @@
     };
     legend.addTo(map);
 
-    // BLACKLIST RAFFINERIE E SITI INDUSTRIALI (Falsi positivi termici)
+    // BLACKLIST RAFFINERIE E SITI INDUSTRIALI AGGIORNATA
     const blacklist = [
-        {lat: 37.1, lon: 15.2}, // Priolo
-        {lat: 44.9, lon: 8.8},  // Sannazzaro de' Burgondi
-        {lat: 40.6, lon: 14.9}, // Salerno Area Ind.
-        {lat: 42.1, lon: 12.0}, // Civitavecchia
-        {lat: 45.4, lon: 12.2}  // Porto Marghera
+        {lat: 37.13, lon: 15.21}, // Priolo
+        {lat: 44.91, lon: 8.89},  // Sannazzaro
+        {lat: 40.63, lon: 14.92}, // Salerno Ind.
+        {lat: 42.09, lon: 11.82}, // Civitavecchia
+        {lat: 45.45, lon: 12.23}, // Porto Marghera
+        {lat: 37.15, lon: 14.23}, // Gela
+        {lat: 40.48, lon: 17.22}, // Taranto (ILVA)
+        {lat: 43.60, lon: 13.36}, // Falconara
+        {lat: 44.43, lon: 8.75}    // Genova Porto
     ];
 
     function isBlacklisted(lat, lon) {
-        return blacklist.some(site => Math.abs(site.lat - lat) < 0.15 && Math.abs(site.lon - lon) < 0.15);
+        return blacklist.some(site => Math.abs(site.lat - lat) < 0.08 && Math.abs(site.lon - lon) < 0.08);
+    }
+
+    // CONTROLLO RIGOROSO CONFINI (Per evitare Africa, Balcani e Corsica)
+    function isWithinItaly(lat, lon) {
+        // Box Nord
+        const inNorth = lat > 43.5 && lat < 47.1 && lon > 6.6 && lon < 13.9;
+        // Box Centro-Sud
+        const inSouth = lat > 36.5 && lat < 43.5 && lon > 7.5 && lon < 18.5;
+        // Esclusione specifica per non prendere la costa Croata o Africana
+        if (lon > 16.0 && lat < 39.0) return true; // Puglia/Calabria ok
+        if (lon > 12.0 && lat < 38.0) return true; // Sicilia ok
+        if (lon < 9.8 && lat < 41.5 && lat > 38.8) return true; // Sardegna ok
+        
+        return inNorth || inSouth;
     }
 
     function toDMS(deg, p, n) {
@@ -92,7 +110,7 @@
     }
 
     async function loadFires() {
-        document.getElementById('area').innerText = "Analisi territorio nazionale...";
+        document.getElementById('area').innerText = "Filtraggio dati nazionali in corso...";
         try {
             const url = "https://corsproxy.io/?" + encodeURIComponent("https://firms.modaps.eosdis.nasa.gov/api/area/csv/6c7f29542d837e182b0bf7292cb52b99/VIIRS_SNPP_NRT/world/1");
             const response = await fetch(url);
@@ -109,8 +127,8 @@
                 const tempK = parseFloat(data[2]);
                 const tempC = (tempK - 273.15).toFixed(1);
 
-                // FILTRO CONFINI ITALIA + BLACKLIST RAFFINERIE
-                if (lat > 35.5 && lat < 47.5 && lon > 6.5 && lon < 18.5 && !isBlacklisted(lat, lon)) {
+                // FILTRO DOPPIO: Confini Territoriali + Blacklist Industriale
+                if (isWithinItaly(lat, lon) && !isBlacklisted(lat, lon)) {
                     activeFires++;
                     let color = "#f1c40f"; 
                     if (tempC > 52) color = "#e67e22"; 
@@ -139,7 +157,7 @@
             document.getElementById('count').innerText = `${activeFires} Alert Operativi`;
             document.getElementById('area').innerText = `Superficie totale stimata: ${(activeFires * 14.06).toFixed(2)} ha`;
         } catch (e) { 
-            document.getElementById('area').innerText = "Errore connessione NASA.";
+            document.getElementById('area').innerText = "Errore sincronizzazione satellitare.";
             console.log("Errore:", e); 
         }
     }
