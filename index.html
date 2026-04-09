@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MONITORAGGIO INCENDI ITALIA - FULL OPERATIVE</title>
+    <title>MONITORAGGIO INCENDI ITALIA - SISTEMA INTEGRATO</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -13,15 +13,16 @@
         .stats { font-weight: bold; line-height: 1.2; }
         .area-info { font-size: 0.75em; color: #ffa500; display: block; }
         
-        /* Legenda */
         .legend { background: rgba(255,255,255,0.95); padding: 12px; border-radius: 8px; line-height: 1.5; font-size: 11px; box-shadow: 0 0 15px rgba(0,0,0,0.4); color: #333; }
         .legend b { display: block; margin-bottom: 5px; border-bottom: 1px solid #ddd; color: #000; }
         .legend i { width: 14px; height: 14px; display: inline-block; margin-right: 8px; border-radius: 3px; vertical-align: middle; }
 
-        /* Animazione Radar */
         @keyframes pulse { 0% { transform: scale(0.8); opacity: 0.8; } 50% { transform: scale(1.5); opacity: 0.1; } 100% { transform: scale(0.8); opacity: 0.8; } }
         .pulse { width: 34px; height: 34px; border-radius: 50%; position: absolute; top: -7px; left: -7px; animation: pulse 1.8s infinite; pointer-events: none; }
         .fire-marker { position: relative; }
+
+        .btn-news { background: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 5px; }
+        .btn-refresh { background: #2ecc71; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -32,7 +33,8 @@
         <span class="area-info" id="area">Inizializzazione sistema...</span>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-        <button onclick="location.reload()" style="padding: 8px 15px; cursor: pointer; background: #3498db; color: white; border: none; border-radius: 4px; font-weight: bold;"><i class="fas fa-sync"></i> AGGIORNA</button>
+        <button class="btn-news" onclick="openNews()">NOTIZIE RAPIDE</button>
+        <button class="btn-refresh" onclick="loadFires()"><i class="fas fa-sync"></i> REFRESH</button>
         <div id="login-zone">
             <input type="password" id="op-code" placeholder="Codice" style="padding:7px; border-radius:4px; border:1px solid #444; background:#333; color:white; width:80px;">
             <button onclick="checkAuth()" style="padding: 7px 12px; background: #e74c3c; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">ENTRA</button>
@@ -44,27 +46,24 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // 1. Definizioni Layer
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
     const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png');
     
     const map = L.map('map', { center: [42.0, 12.5], zoom: 6, layers: [sat] });
     const firesLayer = L.layerGroup().addTo(map);
 
-    // Selettore Mappe (Ripristinato)
-    const baseLayers = { "🛰️ Satellite": sat, "⛰️ Topografica": topo };
-    const overlays = { "🔥 Alert Incendi": firesLayer };
-    L.control.layers(baseLayers, overlays, {collapsed: false, position: 'topright'}).addTo(map);
+    // Selettore Layer: Solo per le mappe, incendi sempre visibili
+    const baseLayers = { "🛰️ Vista Satellitare": sat, "⛰️ Mappa Topografica": topo };
+    L.control.layers(baseLayers, null, {collapsed: false, position: 'topright'}).addTo(map);
 
-    // Legenda
     const legend = L.control({position: 'bottomright'});
     legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'legend');
         div.innerHTML = `
-            <b>INTENSITÀ TERMICA (K)</b>
-            <div><i style="background: #e74c3c"></i> Critico (> 340K)</div>
-            <div><i style="background: #e67e22"></i> Elevato (325-340K)</div>
-            <div><i style="background: #f1c40f"></i> Moderato (< 325K)</div>
+            <b>LIVELLO TERMICO (°C)</b>
+            <div><i style="background: #e74c3c"></i> Critico (> 67°C)</div>
+            <div><i style="background: #e67e22"></i> Elevato (52°C - 67°C)</div>
+            <div><i style="background: #f1c40f"></i> Moderato (< 52°C)</div>
             <hr style="margin:8px 0; border:0; border-top:1px solid #ddd;">
             <div style="font-size:10px; color:#666;"><i class="fas fa-fire" style="background:none; color:#ff4500; width:auto;"></i> Dato VIIRS NASA</div>
         `;
@@ -92,13 +91,15 @@
             rows.forEach(row => {
                 const data = row.split(',');
                 if (data.length < 3) return;
-                const lat = parseFloat(data[0]), lon = parseFloat(data[1]), temp = parseFloat(data[2]);
+                const lat = parseFloat(data[0]), lon = parseFloat(data[1]);
+                const tempK = parseFloat(data[2]);
+                const tempC = (tempK - 273.15).toFixed(1); // Conversione in Celsius
 
                 if (lat > 35.5 && lat < 47.5 && lon > 6.5 && lon < 18.5) {
                     activeFires++;
                     let color = "#f1c40f"; 
-                    if (temp > 325) color = "#e67e22"; 
-                    if (temp > 340) color = "#e74c3c"; 
+                    if (tempC > 52) color = "#e67e22"; 
+                    if (tempC > 67) color = "#e74c3c"; 
 
                     const marker = L.marker([lat, lon], {
                         icon: L.divIcon({
@@ -110,22 +111,33 @@
                     marker.bindPopup(`
                         <div style="font-size:12px; line-height:1.4;">
                             <b style="color:#d35400;">⚠️ ALERT INCENDIO</b><hr>
-                            <b>SITO:</b> Vegetazione / Bosco<br>
-                            <b>TEMP:</b> ${temp} K (Brillanza)<br>
+                            <b>SITO:</b> Bosco / Vegetazione<br>
+                            <b>TEMP:</b> ${tempC}°C<br>
                             <b>COORDS:</b> ${toDMS(lat, 'N', 'S')} ${toDMS(lon, 'E', 'W')}<br>
-                            <b>AREA:</b> ~14.06 ha stimati
+                            <b>AREA:</b> ~14.06 ha
                         </div>
                     `);
                 }
             });
             document.getElementById('count').innerText = `${activeFires} Alert Operativi`;
-            document.getElementById('area').innerText = `Superficie totale stimata in Italia: ${(activeFires * 14.06).toFixed(2)} ha`;
+            document.getElementById('area').innerText = `Superficie totale stimata: ${(activeFires * 14.06).toFixed(2)} ha`;
         } catch (e) { console.log("Errore aggiornamento"); }
+    }
+
+    function openNews() {
+        const choice = prompt("1-Vigilfuoco | 2-Prot. Civile | 3-AIB | 4-Meteo Aeronautica", "1");
+        const urls = {
+            "1": "https://www.vigilfuoco.it/media/notizie/dal-territorio",
+            "2": "https://www.iononrischio.gov.it",
+            "3": "http://www.pcn.minambiente.it",
+            "4": "http://www.meteoam.it"
+        };
+        if(urls[choice]) window.open(urls[choice], '_blank');
     }
 
     function checkAuth() {
         if(document.getElementById('op-code').value === "GABRIELE_STAFF") {
-            document.getElementById('login-zone').innerHTML = "<b style='color:#2ecc71'>✓ OPERATIVO</b>";
+            document.getElementById('login-zone').innerHTML = "<b style='color:#2ecc71'>⭐ OPERATIVO</b>";
         } else { alert("Accesso negato"); }
     }
 
