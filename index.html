@@ -17,9 +17,11 @@
         .legend b { display: block; margin-bottom: 5px; border-bottom: 1px solid #ddd; color: #000; }
         .legend i { width: 14px; height: 14px; display: inline-block; margin-right: 8px; border-radius: 3px; vertical-align: middle; }
 
+        /* FIX POSIZIONAMENTO: Centriamo l'icona rispetto al punto GPS */
+        .fire-marker { width: 30px !important; height: 30px !important; display: flex; align-items: center; justify-content: center; }
+
         @keyframes pulse { 0% { transform: scale(0.8); opacity: 0.8; } 50% { transform: scale(1.5); opacity: 0.1; } 100% { transform: scale(0.8); opacity: 0.8; } }
-        .pulse { width: 34px; height: 34px; border-radius: 50%; position: absolute; top: -7px; left: -7px; animation: pulse 1.8s infinite; pointer-events: none; }
-        .fire-marker { position: relative; }
+        .pulse { width: 34px; height: 34px; border-radius: 50%; position: absolute; animation: pulse 1.8s infinite; pointer-events: none; }
 
         .btn-news { background: #3498db; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 5px; }
         .btn-refresh { background: #2ecc71; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
@@ -80,7 +82,6 @@
     async function loadFires() {
         document.getElementById('area').innerText = "Caricamento dati NASA...";
         try {
-            // Utilizzo di cors-anywhere per maggiore stabilità
             const url = "https://corsproxy.io/?" + encodeURIComponent("https://firms.modaps.eosdis.nasa.gov/api/area/csv/6c7f29542d837e182b0bf7292cb52b99/VIIRS_SNPP_NRT/world/1");
             const response = await fetch(url);
             const text = await response.text();
@@ -105,6 +106,8 @@
                     const marker = L.marker([lat, lon], {
                         icon: L.divIcon({
                             className: 'fire-marker',
+                            iconSize: [30, 30], // FISSA LA DIMENSIONE
+                            iconAnchor: [15, 15], // FISSA L'ANCORAGGIO AL CENTRO
                             html: `<div class="pulse" style="background: ${color}55; border: 1px solid ${color}"></div><i class="fas fa-fire" style="color: ${color}; font-size: 18px; position: relative; z-index:10; text-shadow: 0 0 3px black;"></i>`
                         })
                     }).addTo(firesLayer);
