@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MONITORAGGIO INCENDI ITALIA - SISTEMA INTEGRATO</title>
+    <title>MONITORAGGIO INCENDI ITALIA - FULL BLACKLIST</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -46,18 +46,15 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Configurazione Mappa con preferCanvas per zero lag
     const map = L.map('map', { center: [42.0, 12.5], zoom: 6, preferCanvas: true });
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
     const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png');
     
     const firesLayer = L.layerGroup().addTo(map);
 
-    // Selettore Mappe (Ripristinato)
     const baseLayers = { "🛰️ Vista Satellitare": sat, "⛰️ Mappa Topografica": topo };
     L.control.layers(baseLayers, null, {collapsed: false, position: 'topright'}).addTo(map);
 
-    // Legenda (Ripristinata)
     const legend = L.control({position: 'bottomright'});
     legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'legend');
@@ -73,18 +70,30 @@
     };
     legend.addTo(map);
 
-    // Blacklist Raffinerie
-    const blacklist = [[37.1, 15.2], [44.9, 8.8], [40.6, 14.9], [42.1, 12.0], [45.4, 12.2], [37.1, 14.2], [40.4, 17.2], [43.6, 13.3]];
+    // LISTA BLACKLIST COMPLETA E AGGIORNATA
+    const blacklist = [
+        [37.13, 15.21], [44.91, 8.89], [40.63, 14.92], [42.09, 11.82],
+        [45.45, 12.23], [37.15, 14.23], [40.48, 17.22], [43.60, 13.36],
+        [44.43, 8.75], [43.58, 10.34], [39.11, 9.04], [40.627, 18.003],
+        [40.514, 17.206], [37.211, 15.170], [37.438, 15.031], [38.792, 15.213],
+        [41.695, 13.142], [39.075, 9.018], [39.212, 8.406], [40.554, 9.672],
+        [42.566, 12.672], [43.363, 12.547], [43.852, 12.781], [44.678, 10.851],
+        [45.145, 9.941], [45.458, 10.457], [45.528, 9.799], [45.412, 9.116],
+        [45.485, 9.039], [45.639, 9.605], [45.642, 9.260], [45.782, 8.682]
+    ];
 
     function isWithinItaly(lat, lon) {
-        if (lat < 35.4 || lat > 47.1 || lon < 6.6 || lon > 18.5) return false; // Confini generali
-        if (lat < 37.0 && lon < 12.0) return false; // Esclude Africa
-        if (lon > 13.9 && lat > 45.1) return false; // Esclude Croazia
-        return !blacklist.some(s => Math.abs(s[0] - lat) < 0.06 && Math.abs(s[1] - lon) < 0.06); // Blacklist
+        // Filtri geografici per escludere estero
+        if (lat < 35.4 || lat > 47.1 || lon < 6.6 || lon > 18.5) return false;
+        if (lat < 37.0 && lon < 12.0) return false; // Esclusione Africa
+        if (lon > 13.9 && lat > 45.1) return false; // Esclusione Balcani
+        
+        // Controllo Blacklist chirurgico
+        return !blacklist.some(s => Math.abs(s[0] - lat) < 0.05 && Math.abs(s[1] - lon) < 0.05);
     }
 
     async function loadFires() {
-        document.getElementById('area').innerText = "Sincronizzazione NASA...";
+        document.getElementById('area').innerText = "Filtraggio dati in corso...";
         try {
             const response = await fetch("https://corsproxy.io/?" + encodeURIComponent("https://firms.modaps.eosdis.nasa.gov/api/area/csv/6c7f29542d837e182b0bf7292cb52b99/VIIRS_SNPP_NRT/world/1"));
             const text = await response.text();
@@ -107,12 +116,12 @@
                             iconAnchor: [15, 15],
                             html: `<div class="pulse" style="border:1px solid ${color}"></div><i class="fas fa-fire" style="color:${color}; font-size:16px; text-shadow:0 0 3px #000;"></i>`
                         })
-                    }).addTo(firesLayer).bindPopup(`<b>INCENDIO</b><br>Temp: ${tempC}°C`);
+                    }).addTo(firesLayer).bindPopup(`<b>ALERT</b><br>Temp: ${tempC}°C`);
                 }
             });
-            document.getElementById('count').innerText = `${count} Alert`;
+            document.getElementById('count').innerText = `${count} Alert Operativi`;
             document.getElementById('area').innerText = `Superficie Italia: ${(count * 14.06).toFixed(2)} ha`;
-        } catch (e) { document.getElementById('area').innerText = "Errore dati."; }
+        } catch (e) { document.getElementById('area').innerText = "Errore NASA."; }
     }
 
     function openNews() {
