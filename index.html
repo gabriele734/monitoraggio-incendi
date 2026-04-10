@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MONITORAGGIO INCENDI ITALIA - PROTEZIONE TOTALE</title>
+    <title>MONITORAGGIO INCENDI ITALIA - FULL SCRIPT</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -13,7 +13,6 @@
         .stats { font-weight: bold; line-height: 1.2; }
         .area-info { font-size: 0.75em; color: #ffa500; display: block; }
         .legend { background: rgba(255,255,255,0.95); padding: 10px; border-radius: 8px; font-size: 11px; color: #333; box-shadow: 0 0 15px rgba(0,0,0,0.4); }
-        .legend b { display: block; margin-bottom: 5px; border-bottom: 1px solid #ddd; }
         .legend i { width: 12px; height: 12px; display: inline-block; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
         .fire-marker { width: 30px !important; height: 30px !important; display: flex; align-items: center; justify-content: center; }
         @keyframes pulse { 0% { transform: scale(0.8); opacity: 0.8; } 50% { transform: scale(1.4); opacity: 0.1; } 100% { transform: scale(0.8); opacity: 0.8; } }
@@ -23,8 +22,6 @@
         .btn-report { background: #e67e22; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
         #report-panel, #auth-panel { position: fixed; top: 70px; left: 20px; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; z-index: 2000; display: none; width: 280px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         input, select { width: 100%; margin-bottom: 10px; padding: 8px; box-sizing: border-box; border-radius: 4px; border: none; }
-        .auth-toggle { font-size: 11px; color: #3498db; cursor: pointer; text-decoration: underline; }
-        .close-btn { float: right; cursor: pointer; color: #e74c3c; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -32,7 +29,7 @@
 <header>
     <div class="stats">
         🇮🇹 MONITORAGGIO ITALIA: <span id="count">...</span>
-        <span class="area-info" id="area">Stato Confini: Blindati</span>
+        <span class="area-info" id="area">Confini & Blacklist: ATTIVI</span>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
         <button class="btn-report" onclick="checkAccessForReport()"><i class="fas fa-bullhorn"></i> SEGNALA</button>
@@ -45,18 +42,15 @@
 </header>
 
 <div id="auth-panel">
-    <span class="close-btn" onclick="toggleAuth()">✖</span>
-    <h3 id="auth-title">ACCESSO UTENTE</h3>
-    <input type="email" id="auth-email" placeholder="La tua email">
+    <h3>ACCESSO / REGISTRAZIONE</h3>
+    <input type="email" id="auth-email" placeholder="Email">
     <input type="password" id="auth-pass" placeholder="Password">
-    <button onclick="handleAuth()" id="auth-btn" style="width:100%; background:#e74c3c; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-weight:bold; margin-bottom:10px;">ENTRA</button>
-    <span class="auth-toggle" id="auth-switch" onclick="switchAuthMode()">Crea un nuovo account</span>
+    <button onclick="handleAuth()" style="width:100%; background:#e74c3c; color:white; border:none; padding:10px; border-radius:4px; cursor:pointer; font-weight:bold;">ENTRA</button>
 </div>
 
 <div id="report-panel">
-    <span class="close-btn" onclick="toggleReport()">✖</span>
-    <h3>NUOVA SEGNALAZIONE</h3>
-    <input type="text" id="rep-coords" placeholder="Lat, Lon (clicca sulla mappa)" readonly>
+    <h3>SEGNALAZIONE</h3>
+    <input type="text" id="rep-coords" placeholder="Lat, Lon" readonly>
     <select id="rep-type">
         <option value="Boschivo">Boschivo</option>
         <option value="Interfaccia">Interfaccia</option>
@@ -74,77 +68,60 @@
     const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
     const topo = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png');
     
-    const baseLayers = { "🛰️ Vista Satellitare": sat, "⛰️ Mappa Topografica": topo };
-    L.control.layers(baseLayers, null, {collapsed: false}).addTo(map);
-
+    L.control.layers({ "🛰️ Satellite": sat, "⛰️ Topografica": topo }, null, {collapsed: false}).addTo(map);
     const firesLayer = L.layerGroup().addTo(map);
-    let currentUser = null;
-    let authMode = 'login';
 
-    const blacklist = [[37.13, 15.21], [44.91, 8.89], [40.63, 14.92], [42.09, 11.82], [45.45, 12.23], [37.15, 14.23], [40.48, 17.22], [43.60, 13.36], [44.43, 8.75], [43.58, 10.34]];
+    // --- BLACKLIST INTEGRALE (32 PUNTI INDUSTRIALI) ---
+    const blacklist = [
+        [37.13, 15.21], [44.91, 8.89], [40.63, 14.92], [42.09, 11.82], [45.45, 12.23], [37.15, 14.23], 
+        [40.48, 17.22], [43.60, 13.36], [44.43, 8.75], [43.58, 10.34], [39.11, 9.04], [40.627, 18.003], 
+        [40.514, 17.206], [37.211, 15.170], [37.438, 15.031], [38.792, 15.213], [41.695, 13.142], 
+        [39.075, 9.018], [39.212, 8.406], [40.554, 9.672], [42.566, 12.672], [43.363, 12.547], 
+        [43.852, 12.781], [44.678, 10.851], [45.145, 9.941], [45.458, 10.457], [45.528, 9.799], 
+        [45.412, 9.116], [45.485, 9.039], [45.639, 9.605], [45.642, 9.260], [45.782, 8.682]
+    ];
 
-    // --- IL FILTRO BLINDATO RIPRISTINATO ---
+    // --- FILTRO CONFINI BLINDATI ---
     function isWithinItaly(lat, lon) {
-        // 1. NORD AFRICA (Elimina Algeria e Tunisia)
-        if (lat < 36.6) return false; 
+        if (lat < 36.6 || lat > 47.1) return false; // Algeria/Tunisia & Nord Europa
+        if (lon < 6.5 || lon > 18.6) return false;  // Francia & Balcani
+        if (lat > 41.3 && lat < 43.1 && lon > 8.4 && lon < 9.6) return false; // Corsica
+        if (lat > 45.4 && lon > 13.6) return false; // Slovenia
+        if (lat > 46.5 && lon < 10.5 && lon > 7.0) return false; // Svizzera
 
-        // 2. OVEST (Francia e Spagna)
-        if (lon < 6.5) return false;
-
-        // 3. CORSICA (Blocco chirurgico per salvare la Sardegna)
-        if (lat > 41.3 && lat < 43.1 && lon > 8.4 && lon < 9.6) return false;
-
-        // 4. EST (Balcani e Adriatico Orientale)
-        if (lon > 18.6) return false;
-        if (lon > 13.6 && lat > 45.4) return false; // Slovenia
-        if (lon > 15.0 && lat > 42.5) return false; // Croazia
-
-        // 5. NORD (Svizzera e Austria)
-        if (lat > 47.1) return false;
-        if (lat > 46.5 && lon < 10.5 && lon > 7.0) return false;
-
-        // 6. BLACKLIST INDUSTRIALE
+        // CONTROLLO BLACKLIST
         return !blacklist.some(s => Math.abs(s[0] - lat) < 0.03 && Math.abs(s[1] - lon) < 0.03);
     }
 
-    // --- FUNZIONALITÀ UI ---
-    function toggleAuth() { document.getElementById('auth-panel').style.display = (document.getElementById('auth-panel').style.display === 'block' ? 'none' : 'block'); }
-    
-    function switchAuthMode() {
-        authMode = (authMode === 'login' ? 'register' : 'login');
-        document.getElementById('auth-title').innerText = (authMode === 'login' ? 'ACCESSO UTENTE' : 'REGISTRAZIONE');
-        document.getElementById('auth-btn').innerText = (authMode === 'login' ? 'ENTRA' : 'CREA ACCOUNT');
-    }
-
+    // --- LOGICA UI ---
+    let currentUser = null;
+    function toggleAuth() { document.getElementById('auth-panel').style.display = 'block'; }
     function handleAuth() {
         const email = document.getElementById('auth-email').value;
-        if(!email) return alert("Inserisci un'email");
-        currentUser = email;
-        document.getElementById('login-zone').innerHTML = `<b style='color:#2ecc71'>ID: ${email.split('@')[0].toUpperCase()}</b>`;
-        toggleAuth();
+        if(email) {
+            currentUser = email;
+            document.getElementById('login-zone').innerHTML = `<b style='color:#2ecc71'>ID: ${email.split('@')[0].toUpperCase()}</b>`;
+            document.getElementById('auth-panel').style.display = 'none';
+        }
     }
 
     function checkAccessForReport() {
-        if(!currentUser) { alert("Accedi per segnalare"); toggleAuth(); }
+        if(!currentUser) { alert("Accedi prima!"); toggleAuth(); }
         else { document.getElementById('report-panel').style.display = 'block'; }
     }
 
-    function toggleReport() { document.getElementById('report-panel').style.display = 'none'; }
-
-    map.on('click', function(e) {
+    map.on('click', (e) => {
         if(document.getElementById('report-panel').style.display === 'block') {
             document.getElementById('rep-coords').value = e.latlng.lat.toFixed(4) + ", " + e.latlng.lng.toFixed(4);
         }
     });
 
     function submitManualReport() {
-        const coords = document.getElementById('rep-coords').value;
-        if(!coords) return alert("Clicca sulla mappa!");
-        const [lat, lon] = coords.split(',').map(Number);
+        const [lat, lon] = document.getElementById('rep-coords').value.split(',').map(Number);
         L.marker([lat, lon], {
-            icon: L.divIcon({ className: 'fire-marker', html: `<div class="pulse" style="border:2px solid #9b59b6"></div><i class="fas fa-user-shield" style="color:#9b59b6; font-size:18px;"></i>` })
-        }).addTo(map).bindPopup(`<b>Segnalazione</b><br>User: ${currentUser}`);
-        toggleReport();
+            icon: L.divIcon({ className: 'fire-marker', html: `<div class="pulse" style="border:2px solid #9b59b6"></div><i class="fas fa-user-shield" style="color:#9b59b6"></i>` })
+        }).addTo(map);
+        document.getElementById('report-panel').style.display = 'none';
     }
 
     async function loadFires() {
@@ -161,15 +138,15 @@
                 const lat = parseFloat(d[0]), lon = parseFloat(d[1]);
                 if (isWithinItaly(lat, lon)) {
                     count++;
-                    const tempC = (parseFloat(d[2]) - 273.15).toFixed(1);
-                    const color = tempC > 67 ? "#e74c3c" : (tempC > 52 ? "#e67e22" : "#f1c40f");
+                    const temp = (parseFloat(d[2]) - 273.15).toFixed(1);
+                    const color = temp > 67 ? "#e74c3c" : (temp > 52 ? "#e67e22" : "#f1c40f");
                     L.marker([lat, lon], {
-                        icon: L.divIcon({ className: 'fire-marker', html: `<div class="pulse" style="border:1px solid ${color}"></div><i class="fas fa-fire" style="color:${color}; font-size:16px;"></i>` })
-                    }).addTo(firesLayer).bindPopup(`<b>NASA ALERT</b><br>Temp: ${tempC}°C`);
+                        icon: L.divIcon({ className: 'fire-marker', html: `<div class="pulse" style="border:1px solid ${color}"></div><i class="fas fa-fire" style="color:${color}"></i>` })
+                    }).addTo(firesLayer);
                 }
             });
-            document.getElementById('count').innerText = `${count} Alert Operativi`;
-            document.getElementById('area').innerText = `Area Stimata: ${(count * 14.06).toFixed(2)} ha`;
+            document.getElementById('count').innerText = count;
+            document.getElementById('area').innerText = `Superficie Italia: ${(count * 14.06).toFixed(2)} ha`;
         } catch (e) { console.error(e); }
     }
 
@@ -178,18 +155,12 @@
     const legend = L.control({position: 'bottomright'});
     legend.onAdd = function() {
         const div = L.DomUtil.create('div', 'legend');
-        div.innerHTML = `<b>LIVELLO TERMICO</b>
-            <div><i style="background: #e74c3c"></i> Critico (> 67°C)</div>
-            <div><i style="background: #e67e22"></i> Elevato (52-67°C)</div>
-            <div><i style="background: #f1c40f"></i> Moderato (< 52°C)</div>
-            <hr>
-            <div><i style="background: #9b59b6"></i> Segnalazione</div>`;
+        div.innerHTML = `<b>LEGENDA</b><br><i style="background:#e74c3c"></i> Critico<br><i style="background:#e67e22"></i> Elevato<br><i style="background:#f1c40f"></i> Moderato<br><i style="background:#9b59b6"></i> Segnalazione`;
         return div;
     };
     legend.addTo(map);
 
     loadFires();
-    setInterval(loadFires, 600000);
 </script>
 </body>
 </html>
